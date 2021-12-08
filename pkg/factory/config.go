@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/asaskevich/govalidator"
@@ -18,14 +19,16 @@ import (
 )
 
 const (
-	NrfDefaultTLSPemPath     = "./config/TLS/nrf.pem"
-	NrfDefaultTLSKeyPath     = "./config/TLS/nrf.key"
-	NrfExpectedConfigVersion = "1.0.1"
-	NrfSbiDefaultIPv4        = "127.0.0.10"
-	NrfSbiDefaultPort        = 8000
-	NrfSbiDefaultScheme      = "https"
-	NrfNfmResUriPrefix       = "/nnrf-nfm/v1"
-	NrfDiscResUriPrefix      = "/nnrf-disc/v1"
+	NrfDefaultTLSPemPath      = "./config/cert/nrf.pem"
+	NrfDefaultTLSKeyPath      = "./config/cert/nrf.key"
+	NrfDefaultRootCertPemPath = "./config/cert/root.pem"
+	NrfDefaultRootCertKeyPath = "./config/cert/root.key"
+	NrfExpectedConfigVersion  = "1.0.1"
+	NrfSbiDefaultIPv4         = "127.0.0.10"
+	NrfSbiDefaultPort         = 8000
+	NrfSbiDefaultScheme       = "https"
+	NrfNfmResUriPrefix        = "/nnrf-nfm/v1"
+	NrfDiscResUriPrefix       = "/nnrf-disc/v1"
 )
 
 type Config struct {
@@ -114,7 +117,8 @@ type Sbi struct {
 	// IPv6Addr  string `yaml:"ipv6Addr,omitempty"`
 	BindingIPv4 string `yaml:"bindingIPv4,omitempty" valid:"host,required"` // IP used to run the server in the node.
 	Port        int    `yaml:"port,omitempty" valid:"port,optional"`
-	Tls         *Tls   `yaml:"tls,omitempty" valid:"optional"`
+	TlsCert     *Tls   `yaml:"tls,omitempty" valid:"optional"`
+	RootCert    *Tls   `yaml:"rootcert,omitempty" valid:"optional"`
 }
 
 func (s *Sbi) validate() (bool, error) {
@@ -122,8 +126,13 @@ func (s *Sbi) validate() (bool, error) {
 		return str == "https" || str == "http"
 	})
 
-	if tls := s.Tls; tls != nil {
+	if tls := s.TlsCert; tls != nil {
 		if result, err := tls.validate(); err != nil {
+			return result, err
+		}
+	}
+	if rc := s.RootCert; rc != nil {
+		if result, err := rc.validate(); err != nil {
 			return result, err
 		}
 	}
@@ -213,15 +222,39 @@ func (c *Config) GetSbiUri() string {
 }
 
 func (c *Config) TLSPemPath() string {
-	if c.Configuration.Sbi.Tls != nil {
-		return c.Configuration.Sbi.Tls.Pem
+	if c.Configuration.Sbi.TlsCert != nil {
+		return c.Configuration.Sbi.TlsCert.Pem
 	}
 	return NrfDefaultTLSPemPath
 }
 
 func (c *Config) TLSKeyPath() string {
-	if c.Configuration.Sbi.Tls != nil {
-		return c.Configuration.Sbi.Tls.Key
+	if c.Configuration.Sbi.TlsCert != nil {
+		return c.Configuration.Sbi.TlsCert.Key
 	}
 	return NrfDefaultTLSKeyPath
+}
+
+func (c *Config) RootCertPemPath() string {
+	if c.Configuration.Sbi.RootCert != nil {
+		return c.Configuration.Sbi.RootCert.Pem
+	}
+	return NrfDefaultRootCertPemPath
+}
+
+func (c *Config) RootCertKeyPath() string {
+	if c.Configuration.Sbi.RootCert != nil {
+		return c.Configuration.Sbi.RootCert.Key
+	}
+	return NrfDefaultRootCertKeyPath
+}
+
+func (c *Config) NrfCertPemPath() string {
+	rootCertPemDir, _ := filepath.Split(c.RootCertPemPath())
+	return filepath.Join(rootCertPemDir, "nrf.pem")
+}
+
+func (c *Config) NrfCertKeyPath() string {
+	rootCertKeyDir, _ := filepath.Split(c.RootCertKeyPath())
+	return filepath.Join(rootCertKeyDir, "nrf.key")
 }
