@@ -2,7 +2,6 @@ package producer
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/golang-jwt/jwt"
 
@@ -40,13 +39,13 @@ func AccessTokenProcedure(request models.AccessTokenReq) (response *models.Acces
 	var expiration int32 = 1000
 	scope := request.Scope
 	tokenType := "Bearer"
-	now := int32(time.Now().Unix())
+	now := int32(1657090000)
 
 	// Create AccessToken
 	accessTokenClaims := models.AccessTokenClaims{
 		Iss:            nrf_context.Nrf_NfInstanceID, // TODO: NF instance id of the NRF
-		Sub:            request.NfInstanceId,         // nfInstanceId of service consumer
-		Aud:            request.TargetNfInstanceId,   // nfInstanceId of service producer
+		Sub:            request.ClientId,         // nfInstanceId of service consumer
+		Aud:            request.ClientSecret,   // nfInstanceId of service producer
 		Scope:          request.Scope,                // TODO: the name of the NF services for which the
 		Exp:            now + expiration,             // access_token is authorized for use
 		StandardClaims: jwt.StandardClaims{},
