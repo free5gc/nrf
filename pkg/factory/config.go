@@ -75,6 +75,7 @@ type Configuration struct {
 	MongoDBUrl      string        `yaml:"MongoDBUrl" valid:"required"`
 	DefaultPlmnId   models.PlmnId `yaml:"DefaultPlmnId" valid:"required"`
 	ServiceNameList []string      `yaml:"serviceNameList,omitempty" valid:"required"`
+	OAuth           bool          `yaml:"OAuth,omitempty"`
 }
 
 func (c *Configuration) validate() (bool, error) {

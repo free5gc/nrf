@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/free5gc/nrf/internal/logger"
+	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/nrf/internal/sbi/producer"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
@@ -23,7 +24,14 @@ import (
 
 // DeregisterNFInstance - Deregisters a given NF Instance
 func HTTPDeregisterNFInstance(c *gin.Context) {
+	scopes :=
 	// parse nfInstanceId
+	[]string{"nnrf-nfm"}
+	_, oauth_err := openapi.CheckOAuth(c.Request.Header.Get("Authorization"), scopes)
+	if oauth_err != nil && factory.NrfConfig.Configuration.OAuth == true {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
+		return
+	}
 
 	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["nfInstanceID"] = c.Params.ByName("nfInstanceID")
@@ -34,9 +42,9 @@ func HTTPDeregisterNFInstance(c *gin.Context) {
 	if err != nil {
 		logger.ManagementLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
-			Status: http.StatusInternalServerError,
-			Cause:  "SYSTEM_FAILURE",
-			Detail: err.Error(),
+			Status:	http.StatusInternalServerError,
+			Cause:	"SYSTEM_FAILURE",
+			Detail:	err.Error(),
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
@@ -46,6 +54,12 @@ func HTTPDeregisterNFInstance(c *gin.Context) {
 
 // GetNFInstance - Read the profile of a given NF Instance
 func HTTPGetNFInstance(c *gin.Context) {
+	scopes := []string{"nnrf-nfm"}
+	_, oauth_err := openapi.CheckOAuth(c.Request.Header.Get("Authorization"), scopes)
+	if oauth_err != nil && factory.NrfConfig.Configuration.OAuth == true {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
+		return
+	}
 	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["nfInstanceID"] = c.Params.ByName("nfInstanceID")
 
@@ -55,9 +69,9 @@ func HTTPGetNFInstance(c *gin.Context) {
 	if err != nil {
 		logger.ManagementLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
-			Status: http.StatusInternalServerError,
-			Cause:  "SYSTEM_FAILURE",
-			Detail: err.Error(),
+			Status:	http.StatusInternalServerError,
+			Cause:	"SYSTEM_FAILURE",
+			Detail:	err.Error(),
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
@@ -67,16 +81,24 @@ func HTTPGetNFInstance(c *gin.Context) {
 
 // RegisterNFInstance - Register a new NF Instance
 func HTTPRegisterNFInstance(c *gin.Context) {
-	var nfprofile models.NfProfile
+	scopes := []string{"nnrf-nfm"}
+	_, oauth_err :=
 
 	// step 1: retrieve http request body
+	openapi.CheckOAuth(c.Request.Header.Get("Authorization"), scopes)
+	if oauth_err != nil && factory.NrfConfig.Configuration.OAuth == true {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
+		return
+	}
+	var nfprofile models.NfProfile
+
 	requestBody, err := c.GetRawData()
 	if err != nil {
 		problemDetail := models.ProblemDetails{
-			Title:  "System failure",
-			Status: http.StatusInternalServerError,
-			Detail: err.Error(),
-			Cause:  "SYSTEM_FAILURE",
+			Title:	"System failure",
+			Status:	http.StatusInternalServerError,
+			Detail:	err.Error(),
+			Cause:	"SYSTEM_FAILURE",
 		}
 		logger.ManagementLog.Errorf("Get Request Body error: %+v", err)
 		c.JSON(http.StatusInternalServerError, problemDetail)
@@ -88,9 +110,9 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 	if err != nil {
 		problemDetail := "[Request Body] " + err.Error()
 		rsp := models.ProblemDetails{
-			Title:  "Malformed request syntax",
-			Status: http.StatusBadRequest,
-			Detail: problemDetail,
+			Title:	"Malformed request syntax",
+			Status:	http.StatusBadRequest,
+			Detail:	problemDetail,
 		}
 		logger.ManagementLog.Errorln(problemDetail)
 		c.JSON(http.StatusBadRequest, rsp)
@@ -111,9 +133,9 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 	if err != nil {
 		logger.ManagementLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
-			Status: http.StatusInternalServerError,
-			Cause:  "SYSTEM_FAILURE",
-			Detail: err.Error(),
+			Status:	http.StatusInternalServerError,
+			Cause:	"SYSTEM_FAILURE",
+			Detail:	err.Error(),
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
@@ -123,14 +145,22 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 
 // UpdateNFInstance - Update NF Instance profile
 func HTTPUpdateNFInstance(c *gin.Context) {
+	scopes :=
 	// step 1: retrieve http request body
+	[]string{"nnrf-nfm"}
+	_, oauth_err := openapi.CheckOAuth(c.Request.Header.Get("Authorization"), scopes)
+	if oauth_err != nil && factory.NrfConfig.Configuration.OAuth == true {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
+		return
+	}
+
 	requestBody, err := c.GetRawData()
 	if err != nil {
 		problemDetail := models.ProblemDetails{
-			Title:  "System failure",
-			Status: http.StatusInternalServerError,
-			Detail: err.Error(),
-			Cause:  "SYSTEM_FAILURE",
+			Title:	"System failure",
+			Status:	http.StatusInternalServerError,
+			Detail:	err.Error(),
+			Cause:	"SYSTEM_FAILURE",
 		}
 		logger.ManagementLog.Errorf("Get Request Body error: %+v", err)
 		c.JSON(http.StatusInternalServerError, problemDetail)
@@ -147,9 +177,9 @@ func HTTPUpdateNFInstance(c *gin.Context) {
 	if err != nil {
 		logger.ManagementLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
-			Status: http.StatusInternalServerError,
-			Cause:  "SYSTEM_FAILURE",
-			Detail: err.Error(),
+			Status:	http.StatusInternalServerError,
+			Cause:	"SYSTEM_FAILURE",
+			Detail:	err.Error(),
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {

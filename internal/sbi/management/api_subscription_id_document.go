@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/free5gc/nrf/internal/logger"
+	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/nrf/internal/sbi/producer"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
@@ -23,6 +24,12 @@ import (
 
 // RemoveSubscription - Deletes a subscription
 func HTTPRemoveSubscription(c *gin.Context) {
+	scopes := []string{"nnrf-nfm"}
+	_, oauth_err := openapi.CheckOAuth(c.Request.Header.Get("Authorization"), scopes)
+	if oauth_err != nil && factory.NrfConfig.Configuration.OAuth == true {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
+		return
+	}
 	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["subscriptionID"] = c.Params.ByName("subscriptionID")
 
@@ -32,9 +39,9 @@ func HTTPRemoveSubscription(c *gin.Context) {
 	if err != nil {
 		logger.ManagementLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
-			Status: http.StatusInternalServerError,
-			Cause:  "SYSTEM_FAILURE",
-			Detail: err.Error(),
+			Status:	http.StatusInternalServerError,
+			Cause:	"SYSTEM_FAILURE",
+			Detail:	err.Error(),
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
@@ -44,13 +51,19 @@ func HTTPRemoveSubscription(c *gin.Context) {
 
 // UpdateSubscription - Updates a subscription
 func HTTPUpdateSubscription(c *gin.Context) {
+	scopes := []string{"nnrf-nfm"}
+	_, oauth_err := openapi.CheckOAuth(c.Request.Header.Get("Authorization"), scopes)
+	if oauth_err != nil && factory.NrfConfig.Configuration.OAuth == true {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
+		return
+	}
 	requestBody, err := c.GetRawData()
 	if err != nil {
 		problemDetail := models.ProblemDetails{
-			Title:  "System failure",
-			Status: http.StatusInternalServerError,
-			Detail: err.Error(),
-			Cause:  "SYSTEM_FAILURE",
+			Title:	"System failure",
+			Status:	http.StatusInternalServerError,
+			Detail:	err.Error(),
+			Cause:	"SYSTEM_FAILURE",
 		}
 		logger.ManagementLog.Errorf("Get Request Body error: %+v", err)
 		c.JSON(http.StatusInternalServerError, problemDetail)
@@ -66,9 +79,9 @@ func HTTPUpdateSubscription(c *gin.Context) {
 	if err != nil {
 		logger.ManagementLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
-			Status: http.StatusInternalServerError,
-			Cause:  "SYSTEM_FAILURE",
-			Detail: err.Error(),
+			Status:	http.StatusInternalServerError,
+			Cause:	"SYSTEM_FAILURE",
+			Detail:	err.Error(),
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {

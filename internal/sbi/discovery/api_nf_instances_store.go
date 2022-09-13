@@ -16,6 +16,7 @@ import (
 
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/internal/sbi/producer"
+	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/util/httpwrapper"
@@ -23,12 +24,12 @@ import (
 
 // SearchNFInstances - Search a collection of NF Instances
 func HTTPSearchNFInstances(c *gin.Context) {
-	// var searchNFInstance context.SearchNFInstances
-	// c.BindQuery(&searchNFInstance)
-	// logger.DiscoveryLog.Infoln("searchNFInstance: ", searchNFInstance)
-	// logger.DiscoveryLog.Infoln("targetNFType: ", searchNFInstance.TargetNFType)
-	// logger.DiscoveryLog.Infoln("requesterNFType: ", searchNFInstance.RequesterNFType)
-	// logger.DiscoveryLog.Infoln("ChfSupportedPlmn: ", searchNFInstance.ChfSupportedPlmn)
+	scopes := []string{"nnrf-disc"}
+	_, oauth_err := openapi.CheckOAuth(c.Request.Header.Get("Authorization"), scopes)
+	if oauth_err != nil && factory.NrfConfig.Configuration.OAuth == true {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
+		return
+	}
 
 	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Query = c.Request.URL.Query()
