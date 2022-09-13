@@ -232,7 +232,7 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 		// }
 	}
 
-	yfile, err := ioutil.ReadFile("nrf_verify.yaml")
+	yfile, err := ioutil.ReadFile("acp.yaml")
 	if err != nil {
 		logger.AccessTokenLog.Infoln("Fatal error occurred reading the file.")
 	}
