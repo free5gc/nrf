@@ -161,15 +161,15 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 		}
 	}
 
-	// uri := cert.URIs[0]
-	// id := strings.Split(uri.Opaque, ":")[1]
-	// if id != reqNfInstanceId {
-	// 	logger.AccessTokenLog.Errorln("Certificate verify error: NF Instance Id mismatch (Expected ID: " +
-	// 		reqNfInstanceId + " Received ID: " + id + ")")
-	// 	return &models.AccessTokenErr{
-	// 		Error: "invalid_client",
-	// 	}
-	// }
+	uri := cert.URIs[0]
+	id := strings.Split(uri.Opaque, ":")[1]
+	if id != reqNfInstanceId {
+		logger.AccessTokenLog.Errorln("Certificate verify error: NF Instance Id mismatch (Expected ID: " +
+			reqNfInstanceId + " Received ID: " + id + ")")
+		return &models.AccessTokenErr{
+			Error: "invalid_client",
+		}
+	}
 
 	// Check scope
 	if reqTargetNfType == "NRF" {
