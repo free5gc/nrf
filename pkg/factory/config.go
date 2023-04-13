@@ -8,49 +8,40 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
+	"sync"
 
 	"github.com/asaskevich/govalidator"
 
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/openapi/models"
-	logger_util "github.com/free5gc/util/logger"
 )
 
 const (
-	NrfDefaultCertPemPath     = "./config/cert/nrf.pem"
-	NrfDefaultCertKeyPath     = "./config/cert/nrf.key"
-	NrfDefaultRootCertPemPath = "./config/cert/root.pem"
-	NrfDefaultRootCertKeyPath = "./config/cert/root.key"
-	NrfExpectedConfigVersion  = "1.0.2"
-	NrfSbiDefaultIPv4         = "127.0.0.10"
-	NrfSbiDefaultPort         = 8000
-	NrfSbiDefaultScheme       = "https"
-	NrfNfmResUriPrefix        = "/nnrf-nfm/v1"
-	NrfDiscResUriPrefix       = "/nnrf-disc/v1"
+	NrfDefaultTLSKeyLogPath      = "./log/nrfsslkey.log"
+	NrfDefaultCertPemPath        = "./cert/nrf.pem"
+	NrfDefaultPrivateKeyPath     = "./cert/nrf.key"
+	NrfDefaultRootCertPemPath    = "./cert/root.pem"
+	NrfDefaultRootPrivateKeyPath = "./cert/root.key"
+	NrfDefaultConfigPath         = "./config/nrfcfg.yaml"
+	NrfSbiDefaultIPv4            = "127.0.0.10"
+	NrfSbiDefaultPort            = 8000
+	NrfSbiDefaultScheme          = "https"
+	NrfNfmResUriPrefix           = "/nnrf-nfm/v1"
+	NrfDiscResUriPrefix          = "/nnrf-disc/v1"
 )
 
 type Config struct {
-	Info          *Info               `yaml:"info" valid:"required"`
-	Configuration *Configuration      `yaml:"configuration" valid:"required"`
-	Logger        *logger_util.Logger `yaml:"logger" valid:"required"`
+	Info          *Info          `yaml:"info" valid:"required"`
+	Configuration *Configuration `yaml:"configuration" valid:"required"`
+	Logger        *Logger        `yaml:"logger" valid:"required"`
+	sync.RWMutex
 }
 
 func (c *Config) Validate() (bool, error) {
-	if info := c.Info; info != nil {
-		if result, err := info.validate(); err != nil {
-			return result, err
-		}
-	}
-
 	if configuration := c.Configuration; configuration != nil {
 		if result, err := configuration.validate(); err != nil {
-			return result, err
-		}
-	}
-
-	if logger := c.Logger; logger != nil {
-		if result, err := logger.Validate(); err != nil {
 			return result, err
 		}
 	}
@@ -60,22 +51,23 @@ func (c *Config) Validate() (bool, error) {
 }
 
 type Info struct {
-	Version     string `yaml:"version,omitempty" valid:"type(string)"`
+	Version     string `yaml:"version,omitempty" valid:"required,in(1.0.2)"`
 	Description string `yaml:"description,omitempty" valid:"type(string)"`
-}
-
-func (i *Info) validate() (bool, error) {
-	result, err := govalidator.ValidateStruct(i)
-	return result, appendInvalid(err)
 }
 
 type Configuration struct {
 	Sbi             *Sbi          `yaml:"sbi,omitempty" valid:"required"`
-	MongoDBName     string        `yaml:"MongoDBName" valid:"type(string),required"`
+	MongoDBName     string        `yaml:"MongoDBName" valid:"required"`
 	MongoDBUrl      string        `yaml:"MongoDBUrl" valid:"required"`
 	DefaultPlmnId   models.PlmnId `yaml:"DefaultPlmnId" valid:"required"`
 	ServiceNameList []string      `yaml:"serviceNameList,omitempty" valid:"required"`
 	OAuth           bool          `yaml:"OAuth,omitempty"`
+}
+
+type Logger struct {
+	Enable       bool   `yaml:"enable" valid:"type(bool)"`
+	Level        string `yaml:"level" valid:"required,in(trace|debug|info|warn|error|fatal|panic)"`
+	ReportCaller bool   `yaml:"reportCaller" valid:"type(bool)"`
 }
 
 func (c *Configuration) validate() (bool, error) {
@@ -119,23 +111,13 @@ type Sbi struct {
 	Port        int    `yaml:"port,omitempty" valid:"port,optional"`
 	Cert        *Cert  `yaml:"cert,omitempty" valid:"optional"`
 	RootCert    *Cert  `yaml:"rootcert,omitempty" valid:"optional"`
+	OAuth       bool   `yaml:"oauth,omitempty" valid:"optional"`
 }
 
 func (s *Sbi) validate() (bool, error) {
 	govalidator.TagMap["scheme"] = govalidator.Validator(func(str string) bool {
 		return str == "https" || str == "http"
 	})
-
-	if c := s.Cert; c != nil {
-		if result, err := c.validate(); err != nil {
-			return result, err
-		}
-	}
-	if rc := s.RootCert; rc != nil {
-		if result, err := rc.validate(); err != nil {
-			return result, err
-		}
-	}
 
 	result, err := govalidator.ValidateStruct(s)
 	return result, appendInvalid(err)
@@ -144,11 +126,6 @@ func (s *Sbi) validate() (bool, error) {
 type Cert struct {
 	Pem string `yaml:"pem,omitempty" valid:"type(string),minstringlength(1),required"`
 	Key string `yaml:"key,omitempty" valid:"type(string),minstringlength(1),required"`
-}
-
-func (c *Cert) validate() (bool, error) {
-	result, err := govalidator.ValidateStruct(c)
-	return result, err
 }
 
 func appendInvalid(err error) error {
@@ -167,13 +144,92 @@ func appendInvalid(err error) error {
 }
 
 func (c *Config) GetVersion() string {
-	if c.Info != nil && c.Info.Version != "" {
+	c.RLock()
+	defer c.RUnlock()
+
+	if c.Info.Version != "" {
 		return c.Info.Version
 	}
 	return ""
 }
 
+func (c *Config) SetLogEnable(enable bool) {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.Logger == nil {
+		logger.CfgLog.Warnf("Logger should not be nil")
+		c.Logger = &Logger{
+			Enable: enable,
+			Level:  "info",
+		}
+	} else {
+		c.Logger.Enable = enable
+	}
+}
+
+func (c *Config) SetLogLevel(level string) {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.Logger == nil {
+		logger.CfgLog.Warnf("Logger should not be nil")
+		c.Logger = &Logger{
+			Level: level,
+		}
+	} else {
+		c.Logger.Level = level
+	}
+}
+
+func (c *Config) SetLogReportCaller(reportCaller bool) {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.Logger == nil {
+		logger.CfgLog.Warnf("Logger should not be nil")
+		c.Logger = &Logger{
+			Level:        "info",
+			ReportCaller: reportCaller,
+		}
+	} else {
+		c.Logger.ReportCaller = reportCaller
+	}
+}
+
+func (c *Config) GetLogEnable() bool {
+	c.RLock()
+	defer c.RUnlock()
+	if c.Logger == nil {
+		logger.CfgLog.Warnf("Logger should not be nil")
+		return false
+	}
+	return c.Logger.Enable
+}
+
+func (c *Config) GetLogLevel() string {
+	c.RLock()
+	defer c.RUnlock()
+	if c.Logger == nil {
+		logger.CfgLog.Warnf("Logger should not be nil")
+		return "info"
+	}
+	return c.Logger.Level
+}
+
+func (c *Config) GetLogReportCaller() bool {
+	c.RLock()
+	defer c.RUnlock()
+	if c.Logger == nil {
+		logger.CfgLog.Warnf("Logger should not be nil")
+		return false
+	}
+	return c.Logger.ReportCaller
+}
+
 func (c *Config) GetSbiScheme() string {
+	c.RLock()
+	defer c.RUnlock()
 	if c.Configuration != nil && c.Configuration.Sbi != nil && c.Configuration.Sbi.Scheme != "" {
 		return c.Configuration.Sbi.Scheme
 	}
@@ -181,6 +237,8 @@ func (c *Config) GetSbiScheme() string {
 }
 
 func (c *Config) GetSbiPort() int {
+	c.RLock()
+	defer c.RUnlock()
 	if c.Configuration != nil && c.Configuration.Sbi != nil && c.Configuration.Sbi.Port != 0 {
 		return c.Configuration.Sbi.Port
 	}
@@ -188,6 +246,8 @@ func (c *Config) GetSbiPort() int {
 }
 
 func (c *Config) GetSbiBindingIP() string {
+	c.RLock()
+	defer c.RUnlock()
 	bindIP := "0.0.0.0"
 	if c.Configuration == nil || c.Configuration.Sbi == nil {
 		return bindIP
@@ -203,10 +263,14 @@ func (c *Config) GetSbiBindingIP() string {
 }
 
 func (c *Config) GetSbiBindingAddr() string {
+	c.RLock()
+	defer c.RUnlock()
 	return c.GetSbiBindingIP() + ":" + strconv.Itoa(c.GetSbiPort())
 }
 
 func (c *Config) GetSbiRegisterIP() string {
+	c.RLock()
+	defer c.RUnlock()
 	if c.Configuration != nil && c.Configuration.Sbi != nil && c.Configuration.Sbi.RegisterIPv4 != "" {
 		return c.Configuration.Sbi.RegisterIPv4
 	}
@@ -214,37 +278,62 @@ func (c *Config) GetSbiRegisterIP() string {
 }
 
 func (c *Config) GetSbiRegisterAddr() string {
+	c.RLock()
+	defer c.RUnlock()
 	return c.GetSbiRegisterIP() + ":" + strconv.Itoa(c.GetSbiPort())
 }
 
 func (c *Config) GetSbiUri() string {
+	c.RLock()
+	defer c.RUnlock()
 	return c.GetSbiScheme() + "://" + c.GetSbiRegisterAddr()
 }
 
-func (c *Config) NrfCertPemPath() string {
+func (c *Config) GetOAuth() bool {
+	c.RLock()
+	defer c.RUnlock()
+	return c.Configuration.Sbi.OAuth
+}
+
+func (c *Config) GetNrfCertPemPath() string {
+	c.RLock()
+	defer c.RUnlock()
 	if c.Configuration.Sbi.Cert != nil {
 		return c.Configuration.Sbi.Cert.Pem
 	}
 	return NrfDefaultCertPemPath
 }
 
-func (c *Config) NrfCertKeyPath() string {
+func (c *Config) GetCertBasePath() string {
+	c.RLock()
+	defer c.RUnlock()
+	dir, _ := filepath.Split(c.GetNrfCertPemPath())
+	return dir
+}
+
+func (c *Config) GetNrfPrivKeyPath() string {
+	c.RLock()
+	defer c.RUnlock()
 	if c.Configuration.Sbi.Cert != nil {
 		return c.Configuration.Sbi.Cert.Key
 	}
-	return NrfDefaultCertKeyPath
+	return NrfDefaultPrivateKeyPath
 }
 
-func (c *Config) RootCertPemPath() string {
+func (c *Config) GetRootCertPemPath() string {
+	c.RLock()
+	defer c.RUnlock()
 	if c.Configuration.Sbi.RootCert != nil {
 		return c.Configuration.Sbi.RootCert.Pem
 	}
 	return NrfDefaultRootCertPemPath
 }
 
-func (c *Config) RootCertKeyPath() string {
+func (c *Config) GetRootPrivKeyPath() string {
+	c.RLock()
+	defer c.RUnlock()
 	if c.Configuration.Sbi.RootCert != nil {
 		return c.Configuration.Sbi.RootCert.Key
 	}
-	return NrfDefaultRootCertKeyPath
+	return NrfDefaultRootPrivateKeyPath
 }

@@ -24,6 +24,7 @@ import (
 
 // SearchNFInstances - Search a collection of NF Instances
 func HTTPSearchNFInstances(c *gin.Context) {
+
 	scopes := []string{"nnrf-disc"}
 	_, oauth_err := openapi.CheckOAuth(c.Request.Header.Get("Authorization"), scopes)
 	if oauth_err != nil && factory.NrfConfig.Configuration.OAuth == true {
@@ -37,7 +38,7 @@ func HTTPSearchNFInstances(c *gin.Context) {
 
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
-		logger.DiscoveryLog.Warnln(err)
+		logger.DiscLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
 			Status: http.StatusInternalServerError,
 			Cause:  "SYSTEM_FAILURE",

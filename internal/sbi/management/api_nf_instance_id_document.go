@@ -39,7 +39,7 @@ func HTTPDeregisterNFInstance(c *gin.Context) {
 
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
-		logger.ManagementLog.Warnln(err)
+		logger.NfmLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
 			Status: http.StatusInternalServerError,
 			Cause:  "SYSTEM_FAILURE",
@@ -66,7 +66,7 @@ func HTTPGetNFInstance(c *gin.Context) {
 
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
-		logger.ManagementLog.Warnln(err)
+		logger.NfmLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
 			Status: http.StatusInternalServerError,
 			Cause:  "SYSTEM_FAILURE",
@@ -99,7 +99,7 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 			Detail: err.Error(),
 			Cause:  "SYSTEM_FAILURE",
 		}
-		logger.ManagementLog.Errorf("Get Request Body error: %+v", err)
+		logger.NfmLog.Errorf("Get Request Body error: %+v", err)
 		c.JSON(http.StatusInternalServerError, problemDetail)
 		return
 	}
@@ -113,7 +113,7 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 			Status: http.StatusBadRequest,
 			Detail: problemDetail,
 		}
-		logger.ManagementLog.Errorln(problemDetail)
+		logger.NfmLog.Errorln(problemDetail)
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
@@ -130,7 +130,7 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
-		logger.ManagementLog.Warnln(err)
+		logger.NfmLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
 			Status: http.StatusInternalServerError,
 			Cause:  "SYSTEM_FAILURE",
@@ -160,7 +160,7 @@ func HTTPUpdateNFInstance(c *gin.Context) {
 			Detail: err.Error(),
 			Cause:  "SYSTEM_FAILURE",
 		}
-		logger.ManagementLog.Errorf("Get Request Body error: %+v", err)
+		logger.NfmLog.Errorf("Get Request Body error: %+v", err)
 		c.JSON(http.StatusInternalServerError, problemDetail)
 		return
 	}
@@ -173,7 +173,7 @@ func HTTPUpdateNFInstance(c *gin.Context) {
 
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
-		logger.ManagementLog.Warnln(err)
+		logger.NfmLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
 			Status: http.StatusInternalServerError,
 			Cause:  "SYSTEM_FAILURE",
