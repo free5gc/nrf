@@ -108,6 +108,14 @@ func HandleGetNFInstancesRequest(request *httpwrapper.Request) *httpwrapper.Resp
 
 			return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 		}
+		if limit < 1 {
+			problemDetails := models.ProblemDetails{
+				Title:  "Invalid Parameter",
+				Status: http.StatusBadRequest,
+				Detail: "limit must be greater than 0",
+			}
+			return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		}
 	}
 
 	response, problemDetails := GetNFInstancesProcedure(nfType, limit)
