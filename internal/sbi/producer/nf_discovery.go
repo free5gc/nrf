@@ -53,8 +53,8 @@ func ValidateQueryParameters(queryParameters url.Values) bool {
 			result1 = true
 		}
 	}
-	return (result0 && result1 && queryParameters["supi"][0][0:4] == "imsi-" &&
-		queryParameters["target-nf-type"] != nil && queryParameters["requester-nf-type"] != nil)
+	return (result0 && result1 && queryParameters["supi"][0][0:5] == "imsi-" &&
+		(queryParameters["target-nf-type"] != nil || queryParameters["requester-nf-type"] != nil))
 }
 
 func NFDiscoveryProcedure(
