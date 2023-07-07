@@ -39,7 +39,7 @@ func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Respons
 }
 
 func ValidateQueryParameters(queryParameters url.Values) bool {
-	NFs := [...]string{"BSF", "SMF", "UPF", "PCF", "AMF", "CHF", "AUSF", "UDM", "UDR"}
+	NFs := [...]string{"BSF", "SMF", "UPF", "PCF", "AMF", "CHF", "AUSF", "UDM", "UDR", "NSSF"}
 	tar := queryParameters["target-nf-type"][0]
 	req := queryParameters["requester-nf-type"][0]
 	result0 := false
@@ -53,14 +53,18 @@ func ValidateQueryParameters(queryParameters url.Values) bool {
 			result1 = true
 		}
 	}
-	return (result0 && result1 && queryParameters["supi"][0][0:5] == "imsi-" &&
-		(queryParameters["target-nf-type"] != nil || queryParameters["requester-nf-type"] != nil))
+	supi_check := true
+	if queryParameters["supi"] != nil {
+		supi_check = (queryParameters["supi"][0][0:5] == "imsi-")
+	}
+
+	return (supi_check && result0 && result1 && queryParameters["target-nf-type"] != nil && queryParameters["requester-nf-type"] != nil)
 }
 
 func NFDiscoveryProcedure(
 	queryParameters url.Values,
 ) (response *models.SearchResult, problemDetails *models.ProblemDetails) {
-	if ValidateQueryParameters(queryParameters) {
+	if ValidateQueryParameters(queryParameters) == false {
 		problemDetails := &models.ProblemDetails{
 			Title:  "Invalid Parameter",
 			Status: http.StatusBadRequest,
