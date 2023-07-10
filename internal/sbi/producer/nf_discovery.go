@@ -64,7 +64,7 @@ func ValidateQueryParameters(queryParameters url.Values) bool {
 func NFDiscoveryProcedure(
 	queryParameters url.Values,
 ) (response *models.SearchResult, problemDetails *models.ProblemDetails) {
-	if ValidateQueryParameters(queryParameters) == false {
+	if !ValidateQueryParameters(queryParameters) {
 		problemDetails := &models.ProblemDetails{
 			Title:  "Invalid Parameter",
 			Status: http.StatusBadRequest,
