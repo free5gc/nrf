@@ -230,10 +230,12 @@ func RemoveSubscriptionProcedure(subscriptionID string) {
 }
 
 func GetNFInstancesProcedure(nfType string, limit int) (*nrf_context.UriList, *models.ProblemDetails) {
-	// nfType := c.Query("nf-type")
-	// limit, err := strconv.Atoi(c.Query("limit"))
 	collName := "urilist"
 	filter := bson.M{"nfType": nfType}
+	if nfType == "" {
+		//if query parameter is not append, the nftype defalue doesn't use.
+		filter = bson.M{}
+	}
 
 	UL, err := mongoapi.RestfulAPIGetOne(collName, filter)
 	if err != nil {
