@@ -233,7 +233,7 @@ func GetNFInstancesProcedure(nfType string, limit int) (*nrf_context.UriList, *m
 	collName := "urilist"
 	filter := bson.M{"nfType": nfType}
 	if nfType == "" {
-		//if query parameter is not append, the nftype defalue doesn't use.
+		// if query parameter is not append, the nftype defalue doesn't use.
 		filter = bson.M{}
 	}
 
