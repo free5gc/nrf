@@ -39,7 +39,8 @@ func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Respons
 }
 
 func ValidateQueryParameters(queryParameters url.Values) bool {
-	NFs := [...]string{"NEF", "BSF", "SMF", "UPF", "PCF", "AMF", "CHF", "AUSF", "UDM", "UDR"}
+	NFs := [...]string{"NRF", "UDM", "AMF", "SMF", "AUSF", "NEF", "PCF", "SMSF", "NSSF", "UDR", "LMF",
+		"GMLC", "5G_EIR", "SEPP", "UPF", "N3IWF", "AF", "UDSF", "BSF", "CHF", "NWDAF"}
 	var tar, req string
 	if queryParameters["target-nf-type"] != nil {
 		tar = queryParameters["target-nf-type"][0]
