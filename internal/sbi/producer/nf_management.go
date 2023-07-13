@@ -233,7 +233,7 @@ func GetNFInstancesProcedure(nfType string, limit int) (*nrf_context.UriList, *m
 	collName := "urilist"
 	filter := bson.M{"nfType": nfType}
 	if nfType == "" {
-		// if query parameter is not append, the nftype defalue doesn't use.
+		// if the query parameter is not present, do not filter by nfType
 		filter = bson.M{}
 	}
 
@@ -263,13 +263,12 @@ func GetNFInstancesProcedure(nfType string, limit int) (*nrf_context.UriList, *m
 			return nil, problemDetail
 		}
 		rspUriList.Link.Item = append(rspUriList.Link.Item, originalUL.Link.Item...)
-		if rspUriList.NfType == "" && originalUL.NfType != "" {
+		if nfType != "" && rspUriList.NfType == "" {
 			rspUriList.NfType = originalUL.NfType
 		}
 	}
 
 	nrf_context.NnrfUriListLimit(rspUriList, limit)
-	// c.JSON(http.StatusOK, originalUL)
 	return rspUriList, nil
 }
 
