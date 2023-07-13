@@ -39,26 +39,37 @@ func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Respons
 }
 
 func ValidateQueryParameters(queryParameters url.Values) bool {
-	NFs := [...]string{"BSF", "SMF", "UPF", "PCF", "AMF", "CHF", "AUSF", "UDM", "UDR", "NSSF"}
-	tar := queryParameters["target-nf-type"][0]
-	req := queryParameters["requester-nf-type"][0]
-	result0 := false
-	result1 := false
+	NFs := [...]string{"NEF", "BSF", "SMF", "UPF", "PCF", "AMF", "CHF", "AUSF", "UDM", "UDR"}
+	var tar, req string
+	if queryParameters["target-nf-type"] != nil {
+		tar = queryParameters["target-nf-type"][0]
+	}
+	if queryParameters["requester-nf-type"] != nil {
+		req = queryParameters["requester-nf-type"][0]
+	}
 
+	tarIsVaild := false
+	reqIsValid := false
 	for _, nf := range NFs {
 		if tar == nf {
-			result0 = true
+			tarIsVaild = true
 		}
 		if req == nf {
-			result1 = true
+			reqIsValid = true
 		}
 	}
-	supi_check := true
-	if queryParameters["supi"] != nil {
-		supi_check = (queryParameters["supi"][0][0:5] == "imsi-")
+
+	if !(tarIsVaild && reqIsValid) {
+		return false
 	}
 
-	return (supi_check && result0 && result1 && queryParameters["target-nf-type"] != nil && queryParameters["requester-nf-type"] != nil)
+	if queryParameters["supi"] != nil {
+		if queryParameters["supi"][0][:5] != "imsi-" {
+			return false
+		}
+	}
+
+	return true
 }
 
 func NFDiscoveryProcedure(
