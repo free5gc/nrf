@@ -39,7 +39,7 @@ func HandleAccessTokenRequest(request *httpwrapper.Request) *httpwrapper.Respons
 		Status: http.StatusInternalServerError,
 		Cause:  "UNSPECIFIED",
 	}
-	return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
+	return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 }
 
 func AccessTokenProcedure(request models.AccessTokenReq) (
