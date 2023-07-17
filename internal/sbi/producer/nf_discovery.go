@@ -38,36 +38,44 @@ func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Respons
 	return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 }
 
-func ValidateQueryParameters(queryParameters url.Values) bool {
-	NFs := [...]string{
-		"NRF", "UDM", "AMF", "SMF", "AUSF", "NEF", "PCF", "SMSF", "NSSF", "UDR", "LMF",
-		"GMLC", "5G_EIR", "SEPP", "UPF", "N3IWF", "AF", "UDSF", "BSF", "CHF", "NWDAF",
+func validateQueryParameters(queryParameters url.Values) bool {
+	NFs := map[string]bool{
+		"NRF":    true,
+		"UDM":    true,
+		"AMF":    true,
+		"SMF":    true,
+		"AUSF":   true,
+		"NEF":    true,
+		"PCF":    true,
+		"SMSF":   true,
+		"NSSF":   true,
+		"UDR":    true,
+		"LMF":    true,
+		"GMLC":   true,
+		"5G_EIR": true,
+		"SEPP":   true,
+		"UPF":    true,
+		"N3IWF":  true,
+		"AF":     true,
+		"UDSF":   true,
+		"BSF":    true,
+		"CHF":    true,
+		"NWDAF":  true,
 	}
-	var tar, req string
+	var tgt, req string
 	if queryParameters["target-nf-type"] != nil {
-		tar = queryParameters["target-nf-type"][0]
+		tgt = queryParameters["target-nf-type"][0]
 	}
 	if queryParameters["requester-nf-type"] != nil {
 		req = queryParameters["requester-nf-type"][0]
 	}
 
-	tarIsVaild := false
-	reqIsValid := false
-	for _, nf := range NFs {
-		if tar == nf {
-			tarIsVaild = true
-		}
-		if req == nf {
-			reqIsValid = true
-		}
-	}
-
-	if !(tarIsVaild && reqIsValid) {
+	if !(NFs[tgt] && NFs[req]) {
 		return false
 	}
 
 	if queryParameters["supi"] != nil {
-		if queryParameters["supi"][0][:5] != "imsi-" {
+		if !strings.Contains(queryParameters["supi"][0], "imsi-") {
 			return false
 		}
 	}
@@ -78,7 +86,7 @@ func ValidateQueryParameters(queryParameters url.Values) bool {
 func NFDiscoveryProcedure(
 	queryParameters url.Values,
 ) (response *models.SearchResult, problemDetails *models.ProblemDetails) {
-	if !ValidateQueryParameters(queryParameters) {
+	if !validateQueryParameters(queryParameters) {
 		problemDetails := &models.ProblemDetails{
 			Title:  "Invalid Parameter",
 			Status: http.StatusBadRequest,
