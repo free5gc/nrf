@@ -191,11 +191,19 @@ func CreateSubscriptionProcedure(subscription models.NrfSubscriptionData) (bson.
 	tmp, err := json.Marshal(subscription)
 	if err != nil {
 		logger.NfmLog.Errorln("Marshal error in CreateSubscriptionProcedure: ", err)
+		return nil, &models.ProblemDetails{
+			Status: http.StatusInternalServerError,
+			Cause:  "CREATE_SUBSCRIPTION_ERROR",
+		}
 	}
 	putData := bson.M{}
 	err = json.Unmarshal(tmp, &putData)
 	if err != nil {
 		logger.NfmLog.Errorln("Unmarshal error in CreateSubscriptionProcedure: ", err)
+		return nil, &models.ProblemDetails{
+			Status: http.StatusInternalServerError,
+			Cause:  "CREATE_SUBSCRIPTION_ERROR",
+		}
 	}
 
 	// TODO: need to store Condition !
