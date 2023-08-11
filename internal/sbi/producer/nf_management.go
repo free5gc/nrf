@@ -178,7 +178,15 @@ func HandleCreateSubscriptionRequest(request *httpwrapper.Request) *httpwrapper.
 }
 
 func CreateSubscriptionProcedure(subscription models.NrfSubscriptionData) (bson.M, *models.ProblemDetails) {
-	subscription.SubscriptionId = nrf_context.SetsubscriptionId()
+	subscriptionID, err := nrf_context.SetsubscriptionId()
+	if err != nil {
+		logger.NfmLog.Errorf("Unable to create subscription ID in CreateSubscriptionProcedure: %+v", err)
+		return nil, &models.ProblemDetails{
+			Status: http.StatusInternalServerError,
+			Cause:  "CREATE_SUBSCRIPTION_ERROR",
+		}
+	}
+	subscription.SubscriptionId = subscriptionID
 
 	tmp, err := json.Marshal(subscription)
 	if err != nil {
@@ -198,7 +206,7 @@ func CreateSubscriptionProcedure(subscription models.NrfSubscriptionData) (bson.
 			logger.NfmLog.Errorf("CreateSubscriptionProcedure err: %+v", err)
 		}
 		problemDetails := &models.ProblemDetails{
-			Status: http.StatusBadRequest,
+			Status: http.StatusInternalServerError,
 			Cause:  "CREATE_SUBSCRIPTION_ERROR",
 		}
 		return nil, problemDetails
