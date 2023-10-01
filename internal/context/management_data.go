@@ -1,11 +1,11 @@
 package context
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"strconv"
-	"time"
 
 	"github.com/mitchellh/mapstructure"
 	"go.mongodb.org/mongo-driver/bson"
@@ -44,10 +44,13 @@ func NnrfNFManagementDataModel(nf *models.NfProfile, nfprofile models.NfProfile)
 	return nil
 }
 
-func SetsubscriptionId() string {
-	rand.Seed(time.Now().UnixNano())
-	x := rand.Intn(100)
-	return strconv.Itoa(x)
+func SetsubscriptionId() (string, error) {
+	buffer := make([]byte, 16)
+	_, err := rand.Read(buffer)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buffer), nil
 }
 
 func nnrfNFManagementCondition(nf *models.NfProfile, nfprofile models.NfProfile) {
@@ -636,6 +639,10 @@ func GetNofificationUri(nfProfile models.NfProfile) []string {
 
 func NnrfUriListLimit(originalUL *UriList, limit int) {
 	// response limit
+
+	if limit <= 0 {
+		return
+	}
 
 	if limit < len(originalUL.Link.Item) {
 		var i int

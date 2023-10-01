@@ -93,16 +93,29 @@ func HandleUpdateNFInstanceRequest(request *httpwrapper.Request) *httpwrapper.Re
 func HandleGetNFInstancesRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.NfmLog.Infoln("Handle GetNFInstancesRequest")
 	nfType := request.Query.Get("nf-type")
-	limit, err := strconv.Atoi(request.Query.Get("limit"))
-	if err != nil {
-		logger.NfmLog.Errorln("Error in string conversion: ", limit)
-		problemDetails := models.ProblemDetails{
-			Title:  "Invalid Parameter",
-			Status: http.StatusBadRequest,
-			Detail: err.Error(),
-		}
+	limit_param := request.Query.Get("limit")
+	limit := 0
+	if limit_param != "" {
+		var err error
+		limit, err = strconv.Atoi(request.Query.Get("limit"))
+		if err != nil {
+			logger.NfmLog.Errorln("Error in string conversion: ", limit)
+			problemDetails := models.ProblemDetails{
+				Title:  "Invalid Parameter",
+				Status: http.StatusBadRequest,
+				Detail: err.Error(),
+			}
 
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+			return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		}
+		if limit < 1 {
+			problemDetails := models.ProblemDetails{
+				Title:  "Invalid Parameter",
+				Status: http.StatusBadRequest,
+				Detail: "limit must be greater than 0",
+			}
+			return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		}
 	}
 
 	response, problemDetails := GetNFInstancesProcedure(nfType, limit)
@@ -165,16 +178,32 @@ func HandleCreateSubscriptionRequest(request *httpwrapper.Request) *httpwrapper.
 }
 
 func CreateSubscriptionProcedure(subscription models.NrfSubscriptionData) (bson.M, *models.ProblemDetails) {
-	subscription.SubscriptionId = nrf_context.SetsubscriptionId()
+	subscriptionID, err := nrf_context.SetsubscriptionId()
+	if err != nil {
+		logger.NfmLog.Errorf("Unable to create subscription ID in CreateSubscriptionProcedure: %+v", err)
+		return nil, &models.ProblemDetails{
+			Status: http.StatusInternalServerError,
+			Cause:  "CREATE_SUBSCRIPTION_ERROR",
+		}
+	}
+	subscription.SubscriptionId = subscriptionID
 
 	tmp, err := json.Marshal(subscription)
 	if err != nil {
 		logger.NfmLog.Errorln("Marshal error in CreateSubscriptionProcedure: ", err)
+		return nil, &models.ProblemDetails{
+			Status: http.StatusInternalServerError,
+			Cause:  "CREATE_SUBSCRIPTION_ERROR",
+		}
 	}
 	putData := bson.M{}
 	err = json.Unmarshal(tmp, &putData)
 	if err != nil {
 		logger.NfmLog.Errorln("Unmarshal error in CreateSubscriptionProcedure: ", err)
+		return nil, &models.ProblemDetails{
+			Status: http.StatusInternalServerError,
+			Cause:  "CREATE_SUBSCRIPTION_ERROR",
+		}
 	}
 
 	// TODO: need to store Condition !
@@ -185,7 +214,7 @@ func CreateSubscriptionProcedure(subscription models.NrfSubscriptionData) (bson.
 			logger.NfmLog.Errorf("CreateSubscriptionProcedure err: %+v", err)
 		}
 		problemDetails := &models.ProblemDetails{
-			Status: http.StatusBadRequest,
+			Status: http.StatusInternalServerError,
 			Cause:  "CREATE_SUBSCRIPTION_ERROR",
 		}
 		return nil, problemDetails
@@ -217,12 +246,14 @@ func RemoveSubscriptionProcedure(subscriptionID string) {
 }
 
 func GetNFInstancesProcedure(nfType string, limit int) (*nrf_context.UriList, *models.ProblemDetails) {
-	// nfType := c.Query("nf-type")
-	// limit, err := strconv.Atoi(c.Query("limit"))
 	collName := "urilist"
 	filter := bson.M{"nfType": nfType}
+	if nfType == "" {
+		// if the query parameter is not present, do not filter by nfType
+		filter = bson.M{}
+	}
 
-	UL, err := mongoapi.RestfulAPIGetOne(collName, filter)
+	ULs, err := mongoapi.RestfulAPIGetMany(collName, filter)
 	if err != nil {
 		logger.NfmLog.Errorf("GetNFInstancesProcedure err: %+v", err)
 		problemDetail := &models.ProblemDetails{
@@ -233,21 +264,28 @@ func GetNFInstancesProcedure(nfType string, limit int) (*nrf_context.UriList, *m
 		}
 		return nil, problemDetail
 	}
-	logger.NfmLog.Infoln("UL: ", UL)
-	originalUL := &nrf_context.UriList{}
-	if err := mapstructure.Decode(UL, originalUL); err != nil {
-		logger.NfmLog.Errorf("Decode error in GetNFInstancesProcedure: %+v", err)
-		problemDetail := &models.ProblemDetails{
-			Title:  "System failure",
-			Status: http.StatusInternalServerError,
-			Detail: err.Error(),
-			Cause:  "SYSTEM_FAILURE",
+	logger.NfmLog.Infoln("ULs: ", ULs)
+	rspUriList := &nrf_context.UriList{}
+	for _, UL := range ULs {
+		originalUL := &nrf_context.UriList{}
+		if err := mapstructure.Decode(UL, originalUL); err != nil {
+			logger.NfmLog.Errorf("Decode error in GetNFInstancesProcedure: %+v", err)
+			problemDetail := &models.ProblemDetails{
+				Title:  "System failure",
+				Status: http.StatusInternalServerError,
+				Detail: err.Error(),
+				Cause:  "SYSTEM_FAILURE",
+			}
+			return nil, problemDetail
 		}
-		return nil, problemDetail
+		rspUriList.Link.Item = append(rspUriList.Link.Item, originalUL.Link.Item...)
+		if nfType != "" && rspUriList.NfType == "" {
+			rspUriList.NfType = originalUL.NfType
+		}
 	}
-	nrf_context.NnrfUriListLimit(originalUL, limit)
-	// c.JSON(http.StatusOK, originalUL)
-	return originalUL, nil
+
+	nrf_context.NnrfUriListLimit(rspUriList, limit)
+	return rspUriList, nil
 }
 
 func NFDeregisterProcedure(nfInstanceID string) *models.ProblemDetails {
