@@ -496,7 +496,7 @@ func NFRegisterProcedure(
 		nfInstanceUri := locationHeaderValue
 
 		for _, uri := range uriList {
-			problemDetails := SendNFStatusNotify(Notification_event, nfInstanceUri, uri, nil)
+			problemDetails := SendNFStatusNotify(Notification_event, nfInstanceUri, uri, &nfProfile)
 			if problemDetails != nil {
 				return nil, nil, false, problemDetails
 			}
