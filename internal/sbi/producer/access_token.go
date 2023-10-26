@@ -14,8 +14,6 @@ import (
 
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
-
-	//"github.com/free5gc/nrf/logger"
 	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
@@ -223,7 +221,6 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 
 		if exists {
 			for _, element := range value {
-
 				if strings.EqualFold(reqNfType, element) == true {
 					count++
 					break
@@ -233,10 +230,10 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 	}
 
 	if count == size {
-
 		return nil
 	} else {
-		logger.AccTokenLog.Errorln("Certificate verify error: Request out of scope (" + req.Scope + ") for " + reqTargetNfType)
+		logger.AccTokenLog.Errorln("Certificate verify error: Request out of scope (" + req.Scope + ") for " +
+			reqTargetNfType)
 		return &models.AccessTokenErr{
 			Error: "invalid_scope",
 		}
@@ -269,6 +266,4 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 	// 		}
 	// 	}
 	// }
-
-	return nil
 }
