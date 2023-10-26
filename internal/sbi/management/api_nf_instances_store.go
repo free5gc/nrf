@@ -15,8 +15,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/free5gc/nrf/internal/logger"
-	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/nrf/internal/sbi/producer"
+	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/util/httpwrapper"
@@ -24,9 +24,9 @@ import (
 
 // GetNFInstances - Retrieves a collection of NF Instances
 func HTTPGetNFInstances(c *gin.Context) {
-	scopes := []string{"nnrf-nfm"}
-	_, oauth_err := openapi.CheckOAuth(c.Request.Header.Get("Authorization"), scopes)
-	if oauth_err != nil && factory.NrfConfig.Configuration.OAuth == true {
+	oauth_err := openapi.VerifyOAuth(c.Request.Header.Get("Authorization"), "nnrf-nfm",
+		factory.NrfConfig.GetNrfCertPemPath())
+	if oauth_err != nil && factory.NrfConfig.GetOAuth() {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
 		return
 	}
@@ -39,9 +39,9 @@ func HTTPGetNFInstances(c *gin.Context) {
 	if err != nil {
 		logger.NfmLog.Warnln(err)
 		problemDetails := models.ProblemDetails{
-			Status:	http.StatusInternalServerError,
-			Cause:	"SYSTEM_FAILURE",
-			Detail:	err.Error(),
+			Status: http.StatusInternalServerError,
+			Cause:  "SYSTEM_FAILURE",
+			Detail: err.Error(),
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {

@@ -24,10 +24,9 @@ import (
 
 // DeregisterNFInstance - Deregisters a given NF Instance
 func HTTPDeregisterNFInstance(c *gin.Context) {
-	scopes := // parse nfInstanceId
-		[]string{"nnrf-nfm"}
-	_, oauth_err := openapi.CheckOAuth(c.Request.Header.Get("Authorization"), scopes)
-	if oauth_err != nil && factory.NrfConfig.Configuration.OAuth == true {
+	oauth_err := openapi.VerifyOAuth(c.Request.Header.Get("Authorization"), "nnrf-nfm",
+		factory.NrfConfig.GetNrfCertPemPath())
+	if oauth_err != nil && factory.NrfConfig.GetOAuth() {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
 		return
 	}
@@ -53,9 +52,9 @@ func HTTPDeregisterNFInstance(c *gin.Context) {
 
 // GetNFInstance - Read the profile of a given NF Instance
 func HTTPGetNFInstance(c *gin.Context) {
-	scopes := []string{"nnrf-nfm"}
-	_, oauth_err := openapi.CheckOAuth(c.Request.Header.Get("Authorization"), scopes)
-	if oauth_err != nil && factory.NrfConfig.Configuration.OAuth == true {
+	oauth_err := openapi.VerifyOAuth(c.Request.Header.Get("Authorization"), "nnrf-nfm",
+		factory.NrfConfig.GetNrfCertPemPath())
+	if oauth_err != nil && factory.NrfConfig.GetOAuth() {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
 		return
 	}
@@ -85,7 +84,7 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 
 	// // step 1: retrieve http request body
 	// openapi.CheckOAuth(c.Request.Header.Get("Authorization"), scopes)
-	// if oauth_err != nil && factory.NrfConfig.Configuration.OAuth == true {
+	// if oauth_err != nil && factory.NrfConfig.GetOAuth() {
 	// 	c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
 	// 	return
 	// }
@@ -144,10 +143,9 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 
 // UpdateNFInstance - Update NF Instance profile
 func HTTPUpdateNFInstance(c *gin.Context) {
-	scopes := // step 1: retrieve http request body
-		[]string{"nnrf-nfm"}
-	_, oauth_err := openapi.CheckOAuth(c.Request.Header.Get("Authorization"), scopes)
-	if oauth_err != nil && factory.NrfConfig.Configuration.OAuth == true {
+	oauth_err := openapi.VerifyOAuth(c.Request.Header.Get("Authorization"), "nnrf-nfm",
+		factory.NrfConfig.GetNrfCertPemPath())
+	if oauth_err != nil && factory.NrfConfig.GetOAuth() {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
 		return
 	}

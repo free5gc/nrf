@@ -58,6 +58,7 @@ func AccessTokenProcedure(request models.AccessTokenReq) (
 
 	errResponse := AccessTokenScopeCheck(request)
 	if errResponse != nil {
+		logger.AccTokenLog.Errorf("AccessTokenScopeCheck error: %v", errResponse.Error)
 		return nil, errResponse
 	}
 
@@ -161,10 +162,10 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 		}
 	}
 
-	uri := cert.URIs[0]
+	uri := nfCert.URIs[0]
 	id := strings.Split(uri.Opaque, ":")[1]
 	if id != reqNfInstanceId {
-		logger.AccessTokenLog.Errorln("Certificate verify error: NF Instance Id mismatch (Expected ID: " +
+		logger.AccTokenLog.Errorln("Certificate verify error: NF Instance Id mismatch (Expected ID: " +
 			reqNfInstanceId + " Received ID: " + id + ")")
 		return &models.AccessTokenErr{
 			Error: "invalid_client",
@@ -193,9 +194,8 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 
 	nfProfile = models.NfProfile{}
 	err = mapstructure.Decode(producerNfInfo, &nfProfile)
-	// nfServices := *nfProfile.NfServices
 	if err != nil {
-		logger.AccessTokenLog.Errorln("Certificate verify error: " + err.Error())
+		logger.AccTokenLog.Errorln("Certificate verify error: " + err.Error())
 		// return &models.AccessTokenErr{
 		// 	Error: "invalid_client",
 		// }
@@ -203,16 +203,15 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 
 	yfile, err := ioutil.ReadFile("acp.yaml")
 	if err != nil {
-		logger.AccessTokenLog.Infoln("Fatal error occurred reading the file.")
+		logger.AccTokenLog.Infoln("Fatal error occurred reading the file.")
 	}
 
 	data := make(map[string][]string)
 
 	err2 := yaml.Unmarshal(yfile, &data)
 	if err2 != nil {
-		logger.AccessTokenLog.Infoln("Couldn't parse YAML")
+		logger.AccTokenLog.Infoln("Couldn't parse YAML")
 	}
-	nfServices := *nfProfile.NfServices
 
 	scopes := strings.Split(req.Scope, " ")
 	size := len(scopes)
@@ -236,7 +235,7 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 
 		return nil
 	} else {
-		logger.AccessTokenLog.Errorln("Certificate verify error: Request out of scope (" + req.Scope + ") for " + reqTargetNfType)
+		logger.AccTokenLog.Errorln("Certificate verify error: Request out of scope (" + req.Scope + ") for " + reqTargetNfType)
 		return &models.AccessTokenErr{
 			Error: "invalid_scope",
 		}
