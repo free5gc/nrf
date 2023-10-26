@@ -221,7 +221,7 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 
 		if exists {
 			for _, element := range value {
-				if strings.EqualFold(reqNfType, element) == true {
+				if strings.EqualFold(reqNfType, element) {
 					count++
 					break
 				}
