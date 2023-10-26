@@ -113,6 +113,7 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 		}
 	}
 
+	logger.AccTokenLog.Infof("reqNfInstanceId: %s", reqNfInstanceId)
 	filter := bson.M{"nfInstanceId": reqNfInstanceId}
 	consumerNfInfo, err := mongoapi.RestfulAPIGetOne(collName, filter)
 	if err != nil {
@@ -156,10 +157,10 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 		DNSName: reqNfType,
 	}
 	if _, err = nfCert.Verify(opts); err != nil {
-		logger.AccTokenLog.Errorln("Certificate verify error: " + err.Error())
-		return &models.AccessTokenErr{
-			Error: "invalid_client",
-		}
+		logger.AccTokenLog.Warnln("Certificate verify error: " + err.Error())
+		// return &models.AccessTokenErr{
+		// 	Error: "invalid_client",
+		// }
 	}
 
 	uri := nfCert.URIs[0]
