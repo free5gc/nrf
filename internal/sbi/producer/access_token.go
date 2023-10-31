@@ -2,7 +2,6 @@ package producer
 
 import (
 	"crypto/x509"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -10,7 +9,6 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/mitchellh/mapstructure"
 	"go.mongodb.org/mongo-driver/bson"
-	"gopkg.in/yaml.v2"
 
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
@@ -111,7 +109,7 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 		}
 	}
 
-	logger.AccTokenLog.Infof("reqNfInstanceId: %s", reqNfInstanceId)
+	logger.AccTokenLog.Debugf("reqNfInstanceId: %s", reqNfInstanceId)
 	filter := bson.M{"nfInstanceId": reqNfInstanceId}
 	consumerNfInfo, err := mongoapi.RestfulAPIGetOne(collName, filter)
 	if err != nil {
@@ -155,10 +153,10 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 		DNSName: reqNfType,
 	}
 	if _, err = nfCert.Verify(opts); err != nil {
-		logger.AccTokenLog.Warnln("Certificate verify error: " + err.Error())
-		// return &models.AccessTokenErr{
-		// 	Error: "invalid_client",
-		// }
+		logger.AccTokenLog.Errorln("Certificate verify error: " + err.Error())
+		return &models.AccessTokenErr{
+			Error: "invalid_client",
+		}
 	}
 
 	uri := nfCert.URIs[0]
@@ -195,75 +193,39 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 	err = mapstructure.Decode(producerNfInfo, &nfProfile)
 	if err != nil {
 		logger.AccTokenLog.Errorln("Certificate verify error: " + err.Error())
-		// return &models.AccessTokenErr{
-		// 	Error: "invalid_client",
-		// }
+		return &models.AccessTokenErr{
+			Error: "invalid_client",
+		}
 	}
-
-	yfile, err := ioutil.ReadFile("acp.yaml")
-	if err != nil {
-		logger.AccTokenLog.Infoln("Fatal error occurred reading the file.")
-	}
-
-	data := make(map[string][]string)
-
-	err2 := yaml.Unmarshal(yfile, &data)
-	if err2 != nil {
-		logger.AccTokenLog.Infoln("Couldn't parse YAML")
-	}
+	nfServices := *nfProfile.NfServices
 
 	scopes := strings.Split(req.Scope, " ")
-	size := len(scopes)
-	count := 0
 
-	for _, scope := range scopes {
-		value, exists := data[scope]
-
-		if exists {
-			for _, element := range value {
-				if strings.EqualFold(reqNfType, element) {
-					count++
+	for _, reqNfService := range scopes {
+		found := false
+		for _, nfService := range nfServices {
+			if string(nfService.ServiceName) == reqNfService {
+				if len(nfService.AllowedNfTypes) == 0 {
+					found = true
+					break
+				} else {
+					for _, nfType := range nfService.AllowedNfTypes {
+						if string(nfType) == reqNfType {
+							found = true
+							break
+						}
+					}
 					break
 				}
 			}
 		}
-	}
-
-	if count == size {
-		return nil
-	} else {
-		logger.AccTokenLog.Errorln("Certificate verify error: Request out of scope (" + req.Scope + ") for " +
-			reqTargetNfType)
-		return &models.AccessTokenErr{
-			Error: "invalid_scope",
+		if !found {
+			logger.AccTokenLog.Errorln("Certificate verify error: Request out of scope (" + reqNfService + ")")
+			return &models.AccessTokenErr{
+				Error: "invalid_scope",
+			}
 		}
 	}
 
-	// scopes := strings.Split(req.Scope, " ")
-
-	// for _, reqNfService := range scopes {
-	// 	found := false
-	// 	for _, nfService := range nfServices {
-	// 		if string(nfService.ServiceName) == reqNfService {
-	// 			if len(nfService.AllowedNfTypes) == 0 {
-	// 				found = true
-	// 				break
-	// 			} else {
-	// 				for _, nfType := range nfService.AllowedNfTypes {
-	// 					if string(nfType) == reqNfType {
-	// 						found = true
-	// 						break
-	// 					}
-	// 				}
-	// 				break
-	// 			}
-	// 		}
-	// 	}
-	// 	if !found {
-	// 		logger.AccessTokenLog.Errorln("Certificate verify error: Request out of scope (" + reqNfService + ")")
-	// 		return &models.AccessTokenErr{
-	// 			Error: "invalid_scope",
-	// 		}
-	// 	}
-	// }
+	return nil
 }
