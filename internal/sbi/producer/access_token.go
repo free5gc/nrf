@@ -154,6 +154,9 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 	}
 	if _, err = nfCert.Verify(opts); err != nil {
 		logger.AccTokenLog.Errorln("Certificate verify error: " + err.Error())
+		// TODO
+		// In testing environment, this would leads to follwing error:
+		// certificate verify error: x509: certificate signed by unknown authority
 		return &models.AccessTokenErr{
 			Error: "invalid_client",
 		}

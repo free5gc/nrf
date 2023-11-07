@@ -55,12 +55,17 @@ type Info struct {
 	Description string `yaml:"description,omitempty" valid:"type(string)"`
 }
 
+type ServiceList struct {
+	ServiceName    string   `yaml:"serviceName" valid:"required"`
+	AllowedNfTypes []string `yaml:"allowedNfTypes,omitempty" valid:"required"`
+}
+
 type Configuration struct {
-	Sbi             *Sbi          `yaml:"sbi,omitempty" valid:"required"`
-	MongoDBName     string        `yaml:"MongoDBName" valid:"required"`
-	MongoDBUrl      string        `yaml:"MongoDBUrl" valid:"required"`
-	DefaultPlmnId   models.PlmnId `yaml:"DefaultPlmnId" valid:"required"`
-	ServiceNameList []string      `yaml:"serviceNameList,omitempty" valid:"required"`
+	Sbi           *Sbi          `yaml:"sbi,omitempty" valid:"required"`
+	MongoDBName   string        `yaml:"MongoDBName" valid:"required"`
+	MongoDBUrl    string        `yaml:"MongoDBUrl" valid:"required"`
+	DefaultPlmnId models.PlmnId `yaml:"DefaultPlmnId" valid:"required"`
+	ServiceList   []ServiceList `yaml:"serviceList" valid:"required"`
 }
 
 type Logger struct {
@@ -86,13 +91,13 @@ func (c *Configuration) validate() (bool, error) {
 		return false, err
 	}
 
-	for index, serviceName := range c.ServiceNameList {
+	for index, service := range c.ServiceList {
 		switch {
-		case serviceName == "nnrf-nfm":
-		case serviceName == "nnrf-disc":
+		case service.ServiceName == "nnrf-nfm":
+		case service.ServiceName == "nnrf-disc":
 		default:
 			err := errors.New("Invalid serviceNameList[" + strconv.Itoa(index) + "]: " +
-				serviceName + ", should be nnrf-nfm, nnrf-disc.")
+				service.ServiceName + ", should be nnrf-nfm, nnrf-disc.")
 			return false, err
 		}
 	}

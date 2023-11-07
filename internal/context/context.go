@@ -39,7 +39,12 @@ func InitNrfContext() error {
 	nrfContext.NrfNfProfile.NfType = models.NfType_NRF
 	nrfContext.NrfNfProfile.NfStatus = models.NfStatus_REGISTERED
 
-	serviceNameList := configuration.ServiceNameList
+	// serviceNameList := make([]string, len(configuration.ServiceList))
+	// for _, service := range configuration.ServiceList {
+	// 	serviceNameList = append(serviceNameList, service.ServiceName)
+	// }
+
+	serviceList := configuration.ServiceList
 
 	if config.GetOAuth() {
 		var err error
@@ -92,17 +97,18 @@ func InitNrfContext() error {
 		}
 	}
 
-	NFServices := InitNFService(serviceNameList, config.Info.Version)
+	NFServices := InitNFService(serviceList, config.Info.Version)
 	nrfContext.NrfNfProfile.NfServices = &NFServices
 	return nil
 }
 
-func InitNFService(srvNameList []string, version string) []models.NfService {
+func InitNFService(srvList []factory.ServiceList, version string) []models.NfService {
 	tmpVersion := strings.Split(version, ".")
 	versionUri := "v" + tmpVersion[0]
-	NFServices := make([]models.NfService, len(srvNameList))
-	for index, nameString := range srvNameList {
-		name := models.ServiceName(nameString)
+	NFServices := make([]models.NfService, len(srvList))
+	for index, service := range srvList {
+		name := models.ServiceName(service.ServiceName)
+		allowNfTypes := make([]models.NfType, len(service.AllowedNfTypes))
 		NFServices[index] = models.NfService{
 			ServiceInstanceId: strconv.Itoa(index),
 			ServiceName:       name,
@@ -122,6 +128,9 @@ func InitNFService(srvNameList []string, version string) []models.NfService {
 					Port:        int32(factory.NrfConfig.GetSbiPort()),
 				},
 			},
+			// TODO
+			// Not yet implement the verification of allowNfTypes
+			AllowedNfTypes: allowNfTypes,
 		}
 	}
 	return NFServices
