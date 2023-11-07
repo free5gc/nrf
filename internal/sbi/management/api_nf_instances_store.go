@@ -24,11 +24,13 @@ import (
 
 // GetNFInstances - Retrieves a collection of NF Instances
 func HTTPGetNFInstances(c *gin.Context) {
-	oauth_err := openapi.VerifyOAuth(c.Request.Header.Get("Authorization"), "nnrf-nfm",
-		factory.NrfConfig.GetNrfCertPemPath())
-	if oauth_err != nil && factory.NrfConfig.GetOAuth() {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
-		return
+	if factory.NrfConfig.GetOAuth() {
+		oauth_err := openapi.VerifyOAuth(c.Request.Header.Get("Authorization"), "nnrf-nfm",
+			factory.NrfConfig.GetNrfCertPemPath())
+		if oauth_err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
+			return
+		}
 	}
 	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Query = c.Request.URL.Query()
