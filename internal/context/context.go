@@ -39,11 +39,6 @@ func InitNrfContext() error {
 	nrfContext.NrfNfProfile.NfType = models.NfType_NRF
 	nrfContext.NrfNfProfile.NfStatus = models.NfStatus_REGISTERED
 
-	// serviceNameList := make([]string, len(configuration.ServiceList))
-	// for _, service := range configuration.ServiceList {
-	// 	serviceNameList = append(serviceNameList, service.ServiceName)
-	// }
-
 	serviceList := configuration.ServiceList
 
 	if config.GetOAuth() {
@@ -129,7 +124,7 @@ func InitNFService(srvList []factory.ServiceList, version string) []models.NfSer
 				},
 			},
 			// TODO
-			// Not yet implement the verification of allowNfTypes
+			// Not yet implement the verification of allowNfTypes using this parameters
 			AllowedNfTypes: allowNfTypes,
 		}
 	}
