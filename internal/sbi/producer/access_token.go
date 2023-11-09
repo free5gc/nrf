@@ -13,8 +13,8 @@ import (
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/pkg/factory"
-	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
+	"github.com/free5gc/openapi/oauth"
 	"github.com/free5gc/util/httpwrapper"
 	"github.com/free5gc/util/mongoapi"
 )
@@ -139,8 +139,8 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 	nrfCtx := nrf_context.GetSelf()
 	roots.AddCert(nrfCtx.RootCert)
 
-	nfCert, err := openapi.ParseCertFromPEM(
-		openapi.GetNFCertPath(factory.NrfConfig.GetCertBasePath(), reqNfType))
+	nfCert, err := oauth.ParseCertFromPEM(
+		oauth.GetNFCertPath(factory.NrfConfig.GetCertBasePath(), reqNfType))
 	if err != nil {
 		logger.AccTokenLog.Errorln("NF Certificate get error: " + err.Error())
 		return &models.AccessTokenErr{
@@ -154,9 +154,6 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 	}
 	if _, err = nfCert.Verify(opts); err != nil {
 		logger.AccTokenLog.Errorln("Certificate verify error: " + err.Error())
-		// TODO
-		// In testing environment, this would leads to follwing error:
-		// certificate verify error: x509: certificate signed by unknown authority
 		return &models.AccessTokenErr{
 			Error: "invalid_client",
 		}
