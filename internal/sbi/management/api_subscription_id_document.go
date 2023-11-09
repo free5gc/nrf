@@ -16,7 +16,6 @@ import (
 
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/internal/sbi/producer"
-	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/util/httpwrapper"
@@ -24,14 +23,11 @@ import (
 
 // RemoveSubscription - Deletes a subscription
 func HTTPRemoveSubscription(c *gin.Context) {
-	if factory.NrfConfig.GetOAuth() {
-		oauth_err := openapi.VerifyOAuth(c.Request.Header.Get("Authorization"), "nnrf-nfm",
-			factory.NrfConfig.GetNrfCertPemPath())
-		if oauth_err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
-			return
-		}
+	auth_err := authorizationCheck(c)
+	if auth_err != nil {
+		return
 	}
+
 	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["subscriptionID"] = c.Params.ByName("subscriptionID")
 
@@ -53,12 +49,11 @@ func HTTPRemoveSubscription(c *gin.Context) {
 
 // UpdateSubscription - Updates a subscription
 func HTTPUpdateSubscription(c *gin.Context) {
-	oauth_err := openapi.VerifyOAuth(c.Request.Header.Get("Authorization"), "nnrf-nfm",
-		factory.NrfConfig.GetNrfCertPemPath())
-	if oauth_err != nil && factory.NrfConfig.GetOAuth() {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
+	auth_err := authorizationCheck(c)
+	if auth_err != nil {
 		return
 	}
+
 	requestBody, err := c.GetRawData()
 	if err != nil {
 		problemDetail := models.ProblemDetails{
