@@ -25,11 +25,6 @@ import (
 
 // CreateSubscription - Create a new subscription
 func HTTPCreateSubscription(c *gin.Context) {
-	auth_err := authorizationCheck(c)
-	if auth_err != nil {
-		return
-	}
-
 	var subscription models.NrfSubscriptionData
 
 	requestBody, err := c.GetRawData()

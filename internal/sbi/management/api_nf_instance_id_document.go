@@ -49,11 +49,6 @@ func HTTPDeregisterNFInstance(c *gin.Context) {
 
 // GetNFInstance - Read the profile of a given NF Instance
 func HTTPGetNFInstance(c *gin.Context) {
-	auth_err := authorizationCheck(c)
-	if auth_err != nil {
-		return
-	}
-
 	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["nfInstanceID"] = c.Params.ByName("nfInstanceID")
 
@@ -81,11 +76,6 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 	// }
 
 	// // step 1: retrieve http request body
-	// openapi.CheckOAuth(c.Request.Header.Get("Authorization"), scopes)
-	// if oauth_err != nil && factory.NrfConfig.GetOAuth() {
-	// 	c.JSON(http.StatusUnauthorized, gin.H{"error": oauth_err.Error()})
-	// 	return
-	// }
 	var nfprofile models.NfProfile
 
 	requestBody, err := c.GetRawData()
@@ -141,11 +131,6 @@ func HTTPRegisterNFInstance(c *gin.Context) {
 
 // UpdateNFInstance - Update NF Instance profile
 func HTTPUpdateNFInstance(c *gin.Context) {
-	auth_err := authorizationCheck(c)
-	if auth_err != nil {
-		return
-	}
-
 	requestBody, err := c.GetRawData()
 	if err != nil {
 		problemDetail := models.ProblemDetails{

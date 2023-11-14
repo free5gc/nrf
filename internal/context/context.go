@@ -13,8 +13,8 @@ import (
 
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/pkg/factory"
-	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/openapi/oauth"
+	"github.com/free5gc/openapi/models"
 )
 
 type NRFContext struct {
@@ -39,7 +39,7 @@ func InitNrfContext() error {
 	nrfContext.NrfNfProfile.NfType = models.NfType_NRF
 	nrfContext.NrfNfProfile.NfStatus = models.NfStatus_REGISTERED
 
-	serviceList := configuration.ServiceList
+	serviceNameList := configuration.ServiceNameList
 
 	if config.GetOAuth() {
 		var err error
@@ -92,18 +92,17 @@ func InitNrfContext() error {
 		}
 	}
 
-	NFServices := InitNFService(serviceList, config.Info.Version)
+	NFServices := InitNFService(serviceNameList, config.Info.Version)
 	nrfContext.NrfNfProfile.NfServices = &NFServices
 	return nil
 }
 
-func InitNFService(srvList []factory.ServiceList, version string) []models.NfService {
+func InitNFService(srvNameList []string, version string) []models.NfService {
 	tmpVersion := strings.Split(version, ".")
 	versionUri := "v" + tmpVersion[0]
-	NFServices := make([]models.NfService, len(srvList))
-	for index, service := range srvList {
-		name := models.ServiceName(service.ServiceName)
-		allowNfTypes := make([]models.NfType, len(service.AllowedNfTypes))
+	NFServices := make([]models.NfService, len(srvNameList))
+	for index, nameString := range srvNameList {
+		name := models.ServiceName(nameString)
 		NFServices[index] = models.NfService{
 			ServiceInstanceId: strconv.Itoa(index),
 			ServiceName:       name,
@@ -123,9 +122,6 @@ func InitNFService(srvList []factory.ServiceList, version string) []models.NfSer
 					Port:        int32(factory.NrfConfig.GetSbiPort()),
 				},
 			},
-			// TODO
-			// Not yet implement the verification of allowNfTypes
-			AllowedNfTypes: allowNfTypes,
 		}
 	}
 	return NFServices
