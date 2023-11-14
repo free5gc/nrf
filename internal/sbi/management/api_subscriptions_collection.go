@@ -27,6 +27,7 @@ import (
 func HTTPCreateSubscription(c *gin.Context) {
 	var subscription models.NrfSubscriptionData
 
+	// step 1: retrieve http request body
 	requestBody, err := c.GetRawData()
 	if err != nil {
 		problemDetail := models.ProblemDetails{
