@@ -27,7 +27,7 @@ import (
 func HTTPAccessTokenRequest(c *gin.Context) {
 	logger.AccTokenLog.Infoln("In HTTPAccessTokenRequest")
 
-	if factory.NrfConfig.GetOAuth() == false {
+	if !factory.NrfConfig.GetOAuth() {
 		rsp := models.ProblemDetails{
 			Title:  "OAuth2 not enable",
 			Status: http.StatusBadRequest,

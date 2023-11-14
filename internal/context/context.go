@@ -13,8 +13,8 @@ import (
 
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/pkg/factory"
-	"github.com/free5gc/openapi/oauth"
 	"github.com/free5gc/openapi/models"
+	"github.com/free5gc/openapi/oauth"
 )
 
 type NRFContext struct {
