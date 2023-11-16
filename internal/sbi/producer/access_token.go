@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
-	"github.com/mitchellh/mapstructure"
 	"go.mongodb.org/mongo-driver/bson"
 
 	nrf_context "github.com/free5gc/nrf/internal/context"
@@ -16,6 +15,7 @@ import (
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/openapi/oauth"
 	"github.com/free5gc/util/httpwrapper"
+	"github.com/free5gc/util/mapstruct"
 	"github.com/free5gc/util/mongoapi"
 )
 
@@ -120,7 +120,8 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 	}
 
 	nfProfile := models.NfProfile{}
-	err = mapstructure.Decode(consumerNfInfo, &nfProfile)
+
+	err = mapstruct.Decode(consumerNfInfo, &nfProfile)
 	if err != nil {
 		logger.AccTokenLog.Errorln("Certificate verify error: " + err.Error())
 		return &models.AccessTokenErr{
@@ -154,6 +155,9 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 	}
 	if _, err = nfCert.Verify(opts); err != nil {
 		logger.AccTokenLog.Errorln("Certificate verify error: " + err.Error())
+		// DEBUG
+		// In testing environment, this would leads to follwing error:
+		// certificate verify error: x509: certificate signed by unknown authority
 		return &models.AccessTokenErr{
 			Error: "invalid_client",
 		}
@@ -190,7 +194,7 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 	}
 
 	nfProfile = models.NfProfile{}
-	err = mapstructure.Decode(producerNfInfo, &nfProfile)
+	err = mapstruct.Decode(producerNfInfo, &nfProfile)
 	if err != nil {
 		logger.AccTokenLog.Errorln("Certificate verify error: " + err.Error())
 		return &models.AccessTokenErr{
