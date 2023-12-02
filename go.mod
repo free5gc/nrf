@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/free5gc/openapi v1.0.7-0.20231201151944-c3306de07dfb
-	github.com/free5gc/util v1.0.5-0.20231001095115-433858e5be94
+	github.com/free5gc/util v1.0.5-0.20231012123940-85f4557167be
 	github.com/gin-gonic/gin v1.9.1
 	github.com/golang-jwt/jwt v3.2.1+incompatible
 	github.com/google/uuid v1.3.0
@@ -51,8 +51,6 @@ require (
 	github.com/xdg-go/stringprep v1.0.2 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
 	golang.org/x/arch v0.3.0 // indirect
-	golang.org/x/crypto v0.14.0 // indirect
-	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/crypto v0.14.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20210810183815-faf39c7919d5 // indirect
