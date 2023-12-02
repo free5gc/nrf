@@ -135,13 +135,22 @@ func makeDir(filePath string) error {
 	return nil
 }
 
-func SignNFCert(nfType, nfId string) error {
-	nfCertPath := oauth.GetNFCertPath(factory.NrfConfig.GetCertBasePath(), nfType)
+func SignNFCert(nfType, nfId, nfCertPem string) error {
+	// Use default {Nf_type}.pem
+	nfCertPath := oauth.GetNFCertPath(factory.NrfConfig.GetCertBasePath(), nfType, "")
+	newCertPath := oauth.GetNFCertPath(factory.NrfConfig.GetCertBasePath(), nfType, nfId)
+
+	logger.NfmLog.Infoln("Use NF certPath:", nfCertPath)
 
 	// Get NF's Certificate from file
 	nfCert, err := oauth.ParseCertFromPEM(nfCertPath)
 	if err != nil {
 		logger.NfmLog.Warnf("No NF cert: %v; generate new one", err)
+
+		_, err = oauth.GenerateRSAKeyPair(nfCertPath, "")
+		if err != nil {
+			return errors.Wrapf(err, "Generate Error")
+		}
 
 		// Get NF's Public key from file
 		var nfPubKey *rsa.PublicKey
@@ -150,9 +159,9 @@ func SignNFCert(nfType, nfId string) error {
 			return errors.Wrapf(err, "sign NF cert")
 		}
 
-		// Generate new NF's Certificate to file
+		// Generate new NF's Certificate to new file
 		_, err = oauth.GenerateCertificate(
-			nfType, nfId, nfCertPath, nfPubKey, nrfContext.RootCert, nrfContext.RootPrivKey)
+			nfType, nfId, newCertPath, nfPubKey, nrfContext.RootCert, nrfContext.RootPrivKey)
 		if err != nil {
 			return errors.Wrapf(err, "sign NF cert")
 		}
@@ -162,9 +171,9 @@ func SignNFCert(nfType, nfId string) error {
 			return errors.Errorf("No public key in NF cert")
 		}
 
-		// Re-generate new NF's Certificate to file
+		// Re-generate new NF's Certificate to new file
 		_, err = oauth.GenerateCertificate(
-			nfType, nfId, nfCertPath, nfPubkey, nrfContext.RootCert, nrfContext.RootPrivKey)
+			nfType, nfId, newCertPath, nfPubkey, nrfContext.RootCert, nrfContext.RootPrivKey)
 		if err != nil {
 			return errors.Wrapf(err, "sign NF cert")
 		}

@@ -141,7 +141,7 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 	roots.AddCert(nrfCtx.RootCert)
 
 	nfCert, err := oauth.ParseCertFromPEM(
-		oauth.GetNFCertPath(factory.NrfConfig.GetCertBasePath(), reqNfType))
+		oauth.GetNFCertPath(factory.NrfConfig.GetCertBasePath(), reqNfType, reqNfInstanceId))
 	if err != nil {
 		logger.AccTokenLog.Errorln("NF Certificate get error: " + err.Error())
 		return &models.AccessTokenErr{
