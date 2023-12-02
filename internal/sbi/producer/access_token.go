@@ -158,8 +158,10 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 		// DEBUG
 		// In testing environment, this would leads to follwing error:
 		// certificate verify error: x509: certificate signed by unknown authority
-		return &models.AccessTokenErr{
-			Error: "invalid_client",
+		if !strings.Contains(err.Error(), "unknown authority") {
+			return &models.AccessTokenErr{
+				Error: "invalid_client",
+			}
 		}
 	}
 
