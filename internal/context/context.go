@@ -147,16 +147,15 @@ func SignNFCert(nfType, nfId, nfCertPem string) error {
 	if err != nil {
 		logger.NfmLog.Warnf("No NF cert: %v; generate new one", err)
 
-		_, err = oauth.GenerateRSAKeyPair(nfCertPath, "")
-		if err != nil {
-			return errors.Wrapf(err, "Generate Error")
-		}
-
 		// Get NF's Public key from file
 		var nfPubKey *rsa.PublicKey
 		nfPubKey, err = oauth.ParsePublicKeyFromPEM(nfCertPath)
 		if err != nil {
-			return errors.Wrapf(err, "sign NF cert")
+			// When ParsePublicKayFromPEM failed, generate new RSA key pair
+			_, err = oauth.GenerateRSAKeyPair(nfCertPath, "")
+			if err != nil {
+				return errors.Wrapf(err, "Generate Error")
+			}
 		}
 
 		// Generate new NF's Certificate to new file
