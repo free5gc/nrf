@@ -154,11 +154,13 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 		DNSName: reqNfType,
 	}
 	if _, err = nfCert.Verify(opts); err != nil {
-		logger.AccTokenLog.Errorln("Certificate verify error: " + err.Error())
 		// DEBUG
 		// In testing environment, this would leads to follwing error:
-		// certificate verify error: x509: certificate signed by unknown authority
-		if !strings.Contains(err.Error(), "unknown authority") {
+		// certificate verify error: x509: certificate signed by unknown authority free5GC
+		if strings.Contains(err.Error(), "unknown authority") {
+			logger.AccTokenLog.Warnf("Certificate verify: %v", err)
+		} else {
+			logger.AccTokenLog.Errorf("Certificate verify: %v", err)
 			return &models.AccessTokenErr{
 				Error: "invalid_client",
 			}
