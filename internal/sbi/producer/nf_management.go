@@ -532,7 +532,7 @@ func NFRegisterProcedure(
 
 		if factory.NrfConfig.GetOAuth() {
 			// Generate NF's pubkey certificate with root certificate
-			err := nrf_context.SignNFCert(string(nf.NfType), nfInstanceId, "")
+			err := nrf_context.SignNFCert(string(nf.NfType), nfInstanceId)
 			if err != nil {
 				logger.NfmLog.Warnln(err)
 			}

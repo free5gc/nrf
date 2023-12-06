@@ -135,7 +135,7 @@ func makeDir(filePath string) error {
 	return nil
 }
 
-func SignNFCert(nfType, nfId, nfCertPem string) error {
+func SignNFCert(nfType, nfId string) error {
 	// Use default {Nf_type}.pem
 	nfCertPath := oauth.GetNFCertPath(factory.NrfConfig.GetCertBasePath(), nfType, "")
 	newCertPath := oauth.GetNFCertPath(factory.NrfConfig.GetCertBasePath(), nfType, nfId)
