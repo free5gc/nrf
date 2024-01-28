@@ -18,6 +18,7 @@ var (
 	NfmLog      *logrus.Entry
 	AccTokenLog *logrus.Entry
 	DiscLog     *logrus.Entry
+	UtilLog       *logrus.Entry
 )
 
 func init() {

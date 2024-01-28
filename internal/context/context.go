@@ -25,7 +25,16 @@ type NRFContext struct {
 	NrfPrivKey       *rsa.PrivateKey
 	NrfPubKey        *rsa.PublicKey
 	NrfCert          *x509.Certificate
+	NrfCertPem      string
+
+	OAuth2Required bool
 }
+
+type NFContext interface {
+	AuthorizationCheck(token, serviceName string) error
+}
+
+var _ NFContext = &NRFContext{}
 
 var nrfContext NRFContext
 
@@ -185,13 +194,12 @@ func GetSelf() *NRFContext {
 	return &nrfContext
 }
 
-func (context *NRFContext) AuthorizationCheck(token, serviceName string) error {
-	if !factory.NrfConfig.GetOAuth() {
+func (c *NRFContext) AuthorizationCheck(token, serviceName string) error {
+	if !c.OAuth2Required {
+		logger.UtilLog.Debugf("NRFContext::AuthorizationCheck: OAuth2 not required\n")
 		return nil
 	}
-	err := oauth.VerifyOAuth(token, serviceName, factory.NrfConfig.GetNrfCertPemPath())
-	if err != nil {
-		return err
-	}
-	return nil
+
+	logger.UtilLog.Debugf("NRFContext::AuthorizationCheck: token[%s] serviceName[%s]\n", token, serviceName)
+	return oauth.VerifyOAuth(token, serviceName, c.NrfCertPem)
 }

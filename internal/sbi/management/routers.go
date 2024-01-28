@@ -15,11 +15,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/free5gc/openapi/models"
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/pkg/factory"
 	logger_util "github.com/free5gc/util/logger"
+	"github.com/free5gc/nrf/internal/util"
 )
+
+const serviceName string = string(models.ServiceName_NNRF_NFM)
 
 // Route is the information for every URI.
 type Route struct {
@@ -50,6 +54,12 @@ func authorizationCheck(c *gin.Context) error {
 
 func AddService(engine *gin.Engine) *gin.RouterGroup {
 	group := engine.Group(factory.NrfNfmResUriPrefix)
+
+	routerAuthorizationCheck := util.NewRouterAuthorizationCheck(serviceName)
+	group.Use(func(c *gin.Context) {
+		routerAuthorizationCheck.Check(c, nrf_context.GetSelf())
+	})
+
 
 	for _, route := range routes {
 		switch route.Method {
