@@ -25,7 +25,7 @@ type NRFContext struct {
 	NrfPrivKey       *rsa.PrivateKey
 	NrfPubKey        *rsa.PublicKey
 	NrfCert          *x509.Certificate
-	NrfCertPem      string
+	NrfCertPem       string
 
 	OAuth2Required bool
 }

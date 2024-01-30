@@ -15,12 +15,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/free5gc/openapi/models"
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
-	"github.com/free5gc/nrf/pkg/factory"
-	logger_util "github.com/free5gc/util/logger"
 	"github.com/free5gc/nrf/internal/util"
+	"github.com/free5gc/nrf/pkg/factory"
+	"github.com/free5gc/openapi/models"
+	logger_util "github.com/free5gc/util/logger"
 )
 
 const serviceName string = string(models.ServiceName_NNRF_DISC)
