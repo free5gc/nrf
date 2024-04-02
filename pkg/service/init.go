@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -12,9 +13,11 @@ import (
 
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
+	"github.com/free5gc/nrf/internal/sbi"
 	"github.com/free5gc/nrf/internal/sbi/accesstoken"
 	"github.com/free5gc/nrf/internal/sbi/discovery"
 	"github.com/free5gc/nrf/internal/sbi/management"
+	"github.com/free5gc/nrf/internal/sbi/processor"
 	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/util/httpwrapper"
 	logger_util "github.com/free5gc/util/logger"
@@ -22,23 +25,56 @@ import (
 )
 
 type NrfApp struct {
-	cfg    *factory.Config
-	nrfCtx *nrf_context.NRFContext
+	cfg       *factory.Config
+	nrfCtx    *nrf_context.NRFContext
+	ctx       context.Context
+	cancel    context.CancelFunc
+	proc      *processor.Processor
+	sbiServer *sbi.Server
 }
 
-func NewApp(cfg *factory.Config) (*NrfApp, error) {
+func NewApp(
+	ctx context.Context,
+	cfg *factory.Config,
+	tlsKeyLogPath string,
+) (*NrfApp, error) {
 	nrf := &NrfApp{cfg: cfg}
 	nrf.SetLogEnable(cfg.GetLogEnable())
 	nrf.SetLogLevel(cfg.GetLogLevel())
 	nrf.SetReportCaller(cfg.GetLogReportCaller())
+	p, err := processor.NewProcessor(nrf)
+	if err != nil {
+		return nrf, err
+	}
+	nrf.proc = p
 
-	err := nrf_context.InitNrfContext()
+	nrf.ctx, nrf.cancel = context.WithCancel(ctx)
+	err = nrf_context.InitNrfContext()
 	if err != nil {
 		logger.InitLog.Errorln(err)
 		return nrf, err
 	}
 	nrf.nrfCtx = nrf_context.GetSelf()
+	if nrf.sbiServer, err = sbi.NewServer(nrf, tlsKeyLogPath); err != nil {
+		return nil, err
+	}
 	return nrf, nil
+}
+
+func (a *NrfApp) Config() *factory.Config {
+	return a.cfg
+}
+
+func (a *NrfApp) Context() *nrf_context.NRFContext {
+	return a.nrfCtx
+}
+
+func (a *NrfApp) CancelContext() context.Context {
+	return a.ctx
+}
+
+func (a *NrfApp) Processor() *processor.Processor {
+	return a.proc
 }
 
 func (a *NrfApp) SetLogEnable(enable bool) {

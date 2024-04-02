@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 
@@ -49,7 +50,7 @@ func action(cliCtx *cli.Context) error {
 	}
 	factory.NrfConfig = cfg
 
-	nrf, err := service.NewApp(cfg)
+	nrf, err := service.NewApp(context.Background(), cfg, "")
 	if err != nil {
 		return err
 	}
