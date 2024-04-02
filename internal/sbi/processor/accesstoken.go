@@ -1,4 +1,4 @@
-package producer
+package processor
 
 import (
 	"crypto/x509"
@@ -6,26 +6,25 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt"
-	"go.mongodb.org/mongo-driver/bson"
-
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/pkg/factory"
-	"github.com/free5gc/openapi/models"
-	"github.com/free5gc/openapi/oauth"
+	"github.com/free5gc/openapi-r17/models"
+	"github.com/free5gc/openapi-r17/oauth"
 	"github.com/free5gc/util/httpwrapper"
 	"github.com/free5gc/util/mapstruct"
 	"github.com/free5gc/util/mongoapi"
+	"github.com/golang-jwt/jwt"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
-func HandleAccessTokenRequest(request *httpwrapper.Request) *httpwrapper.Response {
+func (p *Processor) HandleAccessTokenRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	// Param of AccessTokenRsp
 	logger.AccTokenLog.Debugln("Handle AccessTokenRequest")
 
 	accessTokenReq := request.Body.(models.AccessTokenReq)
 
-	response, errResponse := AccessTokenProcedure(accessTokenReq)
+	response, errResponse := p.AccessTokenProcedure(accessTokenReq)
 	if errResponse != nil {
 		return httpwrapper.NewResponse(http.StatusBadRequest, nil, errResponse)
 	} else if response != nil {
@@ -41,7 +40,7 @@ func HandleAccessTokenRequest(request *httpwrapper.Request) *httpwrapper.Respons
 	return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 }
 
-func AccessTokenProcedure(request models.AccessTokenReq) (
+func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) (
 	*models.AccessTokenRsp, *models.AccessTokenErr,
 ) {
 	logger.AccTokenLog.Debugln("In AccessTokenProcedure")
