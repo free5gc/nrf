@@ -142,6 +142,18 @@ func appendInvalid(err error) error {
 	return error(errs)
 }
 
+func (c *Config) GetCertPemPath() string {
+	c.RLock()
+	defer c.RUnlock()
+	return c.Configuration.Sbi.Cert.Pem
+}
+
+func (c *Config) GetCertKeyPath() string {
+	c.RLock()
+	defer c.RUnlock()
+	return c.Configuration.Sbi.Cert.Key
+}
+
 func (c *Config) GetVersion() string {
 	c.RLock()
 	defer c.RUnlock()
