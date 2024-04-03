@@ -9,9 +9,9 @@ import (
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/pkg/factory"
-	"github.com/free5gc/openapi-r17"
-	"github.com/free5gc/openapi-r17/models"
-	"github.com/free5gc/openapi-r17/oauth"
+	"github.com/free5gc/openapi"
+	"github.com/free5gc/openapi/models"
+	"github.com/free5gc/openapi/oauth"
 	"github.com/free5gc/util/mapstruct"
 	"github.com/free5gc/util/mongoapi"
 	"github.com/golang-jwt/jwt"
@@ -26,9 +26,9 @@ func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) *Handler
 	tokenType := "Bearer"
 	now := int32(time.Now().Unix())
 
-	err := AccessTokenScopeCheck(request)
-	if err != nil {
-		pd := openapi.ProblemDetailsMalformedReqSyntax(err.Error)
+	AccTokenErr := AccessTokenScopeCheck(request)
+	if AccTokenErr != nil {
+		pd := openapi.ProblemDetailsMalformedReqSyntax(AccTokenErr.Error)
 		return &HandlerResponse{int(pd.Status), nil, pd}
 	}
 
@@ -48,7 +48,7 @@ func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) *Handler
 	token := jwt.NewWithClaims(jwt.GetSigningMethod("RS512"), accessTokenClaims)
 	accessToken, err := token.SignedString(nrfCtx.NrfPrivKey)
 	if err != nil {
-		logger.AccTokenLog.Warnln("Signed string error: ", err)
+		logger.AccTokenLog.Warnln("Signed string error: %v", err)
 		pd := openapi.ProblemDetailsMalformedReqSyntax("invalid_request")
 		return &HandlerResponse{int(pd.Status), nil, pd}
 	}
@@ -181,7 +181,7 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 			Error: "invalid_client",
 		}
 	}
-	nfServices := *nfProfile.NfServices
+	nfServices := nfProfile.NfServices
 
 	scopes := strings.Split(req.Scope, " ")
 

@@ -60,11 +60,11 @@ func nnrfNFManagementCondition(nf *models.NfProfile, nfprofile models.NfProfile)
 	}
 	// PlmnList
 	if nfprofile.PlmnList != nil {
-		a := make([]models.PlmnId, len(*nfprofile.PlmnList))
-		copy(a, *nfprofile.PlmnList)
-		nf.PlmnList = &a
+		a := make([]models.PlmnId, len(nfprofile.PlmnList))
+		copy(a, nfprofile.PlmnList)
+		nf.PlmnList = a
 	} else {
-		nf.PlmnList = &[]models.PlmnId{
+		nf.PlmnList = []models.PlmnId{
 			factory.NrfConfig.Configuration.DefaultPlmnId,
 		}
 	}
@@ -101,9 +101,9 @@ func nnrfNFManagementOption(nf *models.NfProfile, nfprofile models.NfProfile) {
 	// sNssais
 	if nfprofile.SNssais != nil {
 		// fmt.Println("SNssais")
-		a := make([]models.Snssai, len(*nfprofile.SNssais))
-		copy(a, *nfprofile.SNssais)
-		nf.SNssais = &a
+		a := make([]models.ExtSnssai, len(nfprofile.SNssais))
+		copy(a, nfprofile.SNssais)
+		nf.SNssais = a
 	}
 
 	// nsiList
@@ -115,9 +115,9 @@ func nnrfNFManagementOption(nf *models.NfProfile, nfprofile models.NfProfile) {
 	}
 	// allowedPlmns
 	if nfprofile.AllowedPlmns != nil {
-		a := make([]models.PlmnId, len(*nfprofile.AllowedPlmns))
-		copy(a, *nfprofile.AllowedPlmns)
-		nf.AllowedPlmns = &a
+		a := make([]models.PlmnId, len(nfprofile.AllowedPlmns))
+		copy(a, nfprofile.AllowedPlmns)
+		nf.AllowedPlmns = a
 	}
 	// allowedNfTypes
 	if nfprofile.AllowedNfTypes != nil {
@@ -135,9 +135,9 @@ func nnrfNFManagementOption(nf *models.NfProfile, nfprofile models.NfProfile) {
 	// allowedNssais
 	if nfprofile.AllowedNssais != nil {
 		// fmt.Println("SNssais")
-		a := make([]models.Snssai, len(*nfprofile.AllowedNssais))
-		copy(a, *nfprofile.AllowedNssais)
-		nf.AllowedNssais = &a
+		a := make([]models.ExtSnssai, len(nfprofile.AllowedNssais))
+		copy(a, nfprofile.AllowedNssais)
+		nf.AllowedNssais = a
 	}
 	// Priority
 	if nfprofile.Priority > 0 && nfprofile.Priority <= 65535 {
@@ -330,20 +330,20 @@ func nnrfNFManagementOption(nf *models.NfProfile, nfprofile models.NfProfile) {
 			a.IpDomainList = nfprofile.BsfInfo.IpDomainList
 		}
 		if nfprofile.BsfInfo.Ipv4AddressRanges != nil {
-			b := make([]models.Ipv4AddressRange, len(*nfprofile.BsfInfo.Ipv4AddressRanges))
-			for i := 0; i < len(*nfprofile.BsfInfo.Ipv4AddressRanges); i++ {
-				b[i].Start = strconv.Itoa(int(Ipv4ToInt((*nfprofile.BsfInfo.Ipv4AddressRanges)[i].Start)))
-				b[i].End = strconv.Itoa(int(Ipv4ToInt((*nfprofile.BsfInfo.Ipv4AddressRanges)[i].End)))
+			b := make([]models.Ipv4AddressRange, len(nfprofile.BsfInfo.Ipv4AddressRanges))
+			for i := 0; i < len(nfprofile.BsfInfo.Ipv4AddressRanges); i++ {
+				b[i].Start = strconv.Itoa(int(Ipv4ToInt((nfprofile.BsfInfo.Ipv4AddressRanges)[i].Start)))
+				b[i].End = strconv.Itoa(int(Ipv4ToInt((nfprofile.BsfInfo.Ipv4AddressRanges)[i].End)))
 			}
-			a.Ipv4AddressRanges = &b
+			a.Ipv4AddressRanges = b
 		}
 		if nfprofile.BsfInfo.Ipv6PrefixRanges != nil {
-			b := make([]models.Ipv6PrefixRange, len(*nfprofile.BsfInfo.Ipv6PrefixRanges))
-			for i := 0; i < len(*nfprofile.BsfInfo.Ipv6PrefixRanges); i++ {
-				b[i].Start = Ipv6ToInt(((*nfprofile.BsfInfo.Ipv6PrefixRanges)[i].Start)).String()
-				b[i].End = Ipv6ToInt(((*nfprofile.BsfInfo.Ipv6PrefixRanges)[i].End)).String()
+			b := make([]models.Ipv6PrefixRange, len(nfprofile.BsfInfo.Ipv6PrefixRanges))
+			for i := 0; i < len(nfprofile.BsfInfo.Ipv6PrefixRanges); i++ {
+				b[i].Start = Ipv6ToInt(((nfprofile.BsfInfo.Ipv6PrefixRanges)[i].Start)).String()
+				b[i].End = Ipv6ToInt(((nfprofile.BsfInfo.Ipv6PrefixRanges)[i].End)).String()
 			}
-			a.Ipv6PrefixRanges = &b
+			a.Ipv6PrefixRanges = b
 		}
 		nf.BsfInfo = &a
 	}
@@ -381,9 +381,9 @@ func nnrfNFManagementOption(nf *models.NfProfile, nfprofile models.NfProfile) {
 
 	// nfServices
 	if nfprofile.NfServices != nil {
-		a := make([]models.NfService, len(*nfprofile.NfServices))
-		copy(a, *nfprofile.NfServices)
-		nf.NfServices = &a
+		a := make([]models.NfService, len(nfprofile.NfServices))
+		copy(a, nfprofile.NfServices)
+		nf.NfServices = a
 	}
 	// CustomerInfo
 	if nfprofile.CustomInfo != nil {
@@ -453,7 +453,7 @@ func setUriListByFilter(filter bson.M, uriList *[]string) {
 		logger.NfmLog.Errorf("setUriListByFilter err: %+v", err)
 	}
 
-	var filterNfTypeResults []models.NrfSubscriptionData
+	var filterNfTypeResults []models.NrfNfManagementSubscriptionData
 	if err := openapi.Convert(filterNfTypeResultsRaw, &filterNfTypeResults); err != nil {
 		logger.NfmLog.Errorf("setUriListByFilter err: %+v", err)
 	}
@@ -521,7 +521,7 @@ func GetNofificationUri(nfProfile models.NfProfile) []string {
 	if nfProfile.NfServices != nil {
 		var ServiceNameCond bson.M
 		var serviceNames bson.A
-		for _, nfService := range *nfProfile.NfServices {
+		for _, nfService := range nfProfile.NfServices {
 			serviceNames = append(serviceNames, string(nfService.ServiceName))
 		}
 		ServiceNameCond = bson.M{
@@ -548,7 +548,7 @@ func GetNofificationUri(nfProfile models.NfProfile) []string {
 		var guamiListFilter bson.M
 		if (*nfProfile.AmfInfo).GuamiList != nil {
 			var guamiListBsonArray bson.A
-			for _, guami := range *(*nfProfile.AmfInfo).GuamiList {
+			for _, guami := range (*nfProfile.AmfInfo).GuamiList {
 				tmp, err := json.Marshal(guami)
 				if err != nil {
 					logger.NfmLog.Error(err)
@@ -572,7 +572,7 @@ func GetNofificationUri(nfProfile models.NfProfile) []string {
 	if nfProfile.SNssais != nil {
 		var networkSliceFilter bson.M
 		var snssaisBsonArray bson.A
-		for _, snssai := range *nfProfile.SNssais {
+		for _, snssai := range nfProfile.SNssais {
 			tmp, err := json.Marshal(snssai)
 			if err != nil {
 				logger.NfmLog.Error(err)

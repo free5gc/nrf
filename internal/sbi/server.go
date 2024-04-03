@@ -18,8 +18,8 @@ import (
 	"github.com/free5gc/nrf/internal/sbi/consumer"
 	"github.com/free5gc/nrf/internal/sbi/processor"
 	"github.com/free5gc/nrf/pkg/factory"
-	"github.com/free5gc/openapi-r17"
-	"github.com/free5gc/openapi-r17/models"
+	"github.com/free5gc/openapi"
+	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/util/httpwrapper"
 )
 

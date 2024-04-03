@@ -7,9 +7,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/free5gc/nrf/internal/logger"
-	"github.com/free5gc/openapi-r17/models"
-	oapi_nrf "github.com/free5gc/openapi-r17/nrf"
-	"github.com/free5gc/openapi-r17/nrf/NFManagement"
+	"github.com/free5gc/openapi/models"
+	oapi_nrf "github.com/free5gc/openapi/nrf"
+	"github.com/free5gc/openapi/nrf/NFManagement"
 )
 
 type nnrfService struct {
@@ -44,8 +44,9 @@ func (s *nnrfService) getNFManagementClient(uri string) *NFManagement.APIClient 
 
 func (s *nnrfService) RegisterNFInstance(ctx context.Context) error {
 	log := logger.ConsumerLog
-	cfg := s.consumer.Config()
-	nrfUri := cfg.GetNrfUri() // We won't implement GetNrfUri() in NRF, it is just an expample
+	// cfg := s.consumer.Config()
+	nrfUri := ""
+	// nrfUri := cfg.GetNrfUri() // We won't implement GetNrfUri() in NRF, it is just an expample
 
 	client := s.getNFManagementClient(nrfUri)
 	nfProfile, err := s.buildNfProfile()
@@ -56,13 +57,13 @@ func (s *nnrfService) RegisterNFInstance(ctx context.Context) error {
 	return oapi_nrf.RegisterNFInstance(ctx, client, nrfUri, nfProfile, log)
 }
 
-func (s *nnrfService) buildNfProfile() (*models.NfProfile, error) {
+func (s *nnrfService) buildNfProfile() (*models.NrfNfManagementNfProfile, error) {
 	nfCtx := s.consumer.Context()
 	cfg := s.consumer.Config()
-	profile := &models.NfProfile{
+	profile := &models.NrfNfManagementNfProfile{
 		NfInstanceId: nfCtx.Nrf_NfInstanceID,
-		NfType:       models.NfType_NRF,
-		NfStatus:     models.NfStatus_REGISTERED,
+		NfType:       models.NrfNfManagementNfType_NRF,
+		NfStatus:     models.NrfNfManagementNfStatus_REGISTERED,
 	}
 
 	profile.Ipv4Addresses = append(profile.Ipv4Addresses, cfg.GetSbiRegisterIP())

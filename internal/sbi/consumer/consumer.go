@@ -5,7 +5,7 @@ import (
 
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/pkg/factory"
-	"github.com/free5gc/openapi-r17/nrf/NFManagement"
+	"github.com/free5gc/openapi/nrf/NFManagement"
 )
 
 type nrf interface {

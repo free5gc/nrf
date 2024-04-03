@@ -93,7 +93,7 @@ func InitNrfContext() error {
 	}
 
 	NFServices := InitNFService(serviceNameList, config.Info.Version)
-	nrfContext.NrfNfProfile.NfServices = &NFServices
+	nrfContext.NrfNfProfile.NfServices = NFServices
 	return nil
 }
 
@@ -106,7 +106,7 @@ func InitNFService(srvNameList []string, version string) []models.NfService {
 		NFServices[index] = models.NfService{
 			ServiceInstanceId: strconv.Itoa(index),
 			ServiceName:       name,
-			Versions: &[]models.NfServiceVersion{
+			Versions: []models.NfServiceVersion{
 				{
 					ApiFullVersion:  version,
 					ApiVersionInUri: versionUri,
@@ -115,10 +115,10 @@ func InitNFService(srvNameList []string, version string) []models.NfService {
 			Scheme:          models.UriScheme(factory.NrfConfig.GetSbiScheme()),
 			NfServiceStatus: models.NfServiceStatus_REGISTERED,
 			ApiPrefix:       factory.NrfConfig.GetSbiUri(),
-			IpEndPoints: &[]models.IpEndPoint{
+			IpEndPoints: []models.IpEndPoint{
 				{
 					Ipv4Address: factory.NrfConfig.GetSbiRegisterIP(),
-					Transport:   models.TransportProtocol_TCP,
+					Transport:   models.NrfNfManagementTransportProtocol_TCP,
 					Port:        int32(factory.NrfConfig.GetSbiPort()),
 				},
 			},
