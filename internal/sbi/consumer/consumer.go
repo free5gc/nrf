@@ -8,22 +8,22 @@ import (
 	"github.com/free5gc/openapi-r17/nrf/NFManagement"
 )
 
-type udr interface {
+type nrf interface {
 	Config() *factory.Config
 	Context() *nrf_context.NRFContext
 	CancelContext() context.Context
 }
 
 type Consumer struct {
-	udr
+	nrf
 
 	// consumer services
 	*nnrfService
 }
 
-func NewConsumer(udr udr) (*Consumer, error) {
+func NewConsumer(nrf nrf) (*Consumer, error) {
 	c := &Consumer{
-		udr: udr,
+		nrf: nrf,
 	}
 
 	c.nnrfService = &nnrfService{
