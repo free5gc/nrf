@@ -17,7 +17,6 @@ import (
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/openapi-r17/models"
-	"github.com/free5gc/util/httpwrapper"
 	"github.com/gin-gonic/gin"
 )
 
@@ -31,14 +30,14 @@ func (s *Server) getAccessTokenEndpoints() []Endpoint {
 		{
 			Method:  http.MethodPost,
 			Pattern: "/oauth2/token",
-			APIFunc: s.HTTPAccessTokenRequest,
+			APIFunc: s.apiAccessTokenRequest,
 		},
 	}
 }
 
 // AccessTokenRequest - Access Token Request
-func (s *Server) HTTPAccessTokenRequest(c *gin.Context) {
-	logger.AccTokenLog.Infoln("In HTTPAccessTokenRequest")
+func (s *Server) apiAccessTokenRequest(c *gin.Context) {
+	logger.AccTokenLog.Debugln("Handle AccessTokenRequest")
 
 	if !factory.NrfConfig.GetOAuth() {
 		rsp := models.ProblemDetails{
@@ -105,10 +104,6 @@ func (s *Server) HTTPAccessTokenRequest(c *gin.Context) {
 		return
 	}
 
-	req := httpwrapper.NewRequest(c.Request, accessTokenReq)
-	req.Params["paramName"] = c.Params.ByName("paramName")
-
-	httpResponse := s.Processor().HandleAccessTokenRequest(req)
-
-	c.JSON(httpResponse.Status, httpResponse.Body)
+	hdlRsp := s.Processor().AccessTokenProcedure(accessTokenReq)
+	s.buildAndSendHttpResponse(c, hdlRsp, false)
 }

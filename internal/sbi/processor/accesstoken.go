@@ -9,43 +9,16 @@ import (
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/pkg/factory"
+	"github.com/free5gc/openapi-r17"
 	"github.com/free5gc/openapi-r17/models"
 	"github.com/free5gc/openapi-r17/oauth"
-	"github.com/free5gc/util/httpwrapper"
 	"github.com/free5gc/util/mapstruct"
 	"github.com/free5gc/util/mongoapi"
 	"github.com/golang-jwt/jwt"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func (p *Processor) HandleAccessTokenRequest(request *httpwrapper.Request) *httpwrapper.Response {
-	// Param of AccessTokenRsp
-	logger.AccTokenLog.Debugln("Handle AccessTokenRequest")
-
-	// example: use of Consumer()
-	// p.Consumer().RegisterNFInstance(p.CancelContext())
-
-	accessTokenReq := request.Body.(models.AccessTokenReq)
-
-	response, errResponse := p.AccessTokenProcedure(accessTokenReq)
-	if errResponse != nil {
-		return httpwrapper.NewResponse(http.StatusBadRequest, nil, errResponse)
-	} else if response != nil {
-		// status code is based on SPEC, and option headers
-		return httpwrapper.NewResponse(http.StatusOK, nil, response)
-	}
-
-	logger.AccTokenLog.Errorln("AccessTokenProcedure returned neither an error nor a response")
-	problemDetails := &models.ProblemDetails{
-		Status: http.StatusInternalServerError,
-		Cause:  "UNSPECIFIED",
-	}
-	return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
-}
-
-func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) (
-	*models.AccessTokenRsp, *models.AccessTokenErr,
-) {
+func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) *HandlerResponse {
 	logger.AccTokenLog.Debugln("In AccessTokenProcedure")
 
 	var expiration int32 = 1000
@@ -53,10 +26,10 @@ func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) (
 	tokenType := "Bearer"
 	now := int32(time.Now().Unix())
 
-	errResponse := AccessTokenScopeCheck(request)
-	if errResponse != nil {
-		logger.AccTokenLog.Errorf("AccessTokenScopeCheck error: %v", errResponse.Error)
-		return nil, errResponse
+	err := AccessTokenScopeCheck(request)
+	if err != nil {
+		pd := openapi.ProblemDetailsMalformedReqSyntax(err.Error)
+		return &HandlerResponse{int(pd.Status), nil, pd}
 	}
 
 	// Create AccessToken
@@ -76,18 +49,20 @@ func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) (
 	accessToken, err := token.SignedString(nrfCtx.NrfPrivKey)
 	if err != nil {
 		logger.AccTokenLog.Warnln("Signed string error: ", err)
-		return nil, &models.AccessTokenErr{
-			Error: "invalid_request",
-		}
+		pd := openapi.ProblemDetailsMalformedReqSyntax("invalid_request")
+		return &HandlerResponse{int(pd.Status), nil, pd}
 	}
 
-	response := &models.AccessTokenRsp{
-		AccessToken: accessToken,
-		TokenType:   tokenType,
-		ExpiresIn:   expiration,
-		Scope:       scope,
+	return &HandlerResponse{
+		http.StatusOK,
+		nil,
+		&models.AccessTokenRsp{
+			AccessToken: accessToken,
+			TokenType:   tokenType,
+			ExpiresIn:   expiration,
+			Scope:       scope,
+		},
 	}
-	return response, nil
 }
 
 func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
