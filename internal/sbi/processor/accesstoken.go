@@ -22,6 +22,9 @@ func (p *Processor) HandleAccessTokenRequest(request *httpwrapper.Request) *http
 	// Param of AccessTokenRsp
 	logger.AccTokenLog.Debugln("Handle AccessTokenRequest")
 
+	// example: use of Consumer()
+	// p.Consumer().RegisterNFInstance(p.CancelContext())
+
 	accessTokenReq := request.Body.(models.AccessTokenReq)
 
 	response, errResponse := p.AccessTokenProcedure(accessTokenReq)

@@ -15,6 +15,7 @@ import (
 
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
+	"github.com/free5gc/nrf/internal/sbi/consumer"
 	"github.com/free5gc/nrf/internal/sbi/processor"
 	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/openapi-r17"
@@ -54,6 +55,7 @@ type nrf interface {
 	Context() *nrf_context.NRFContext
 	CancelContext() context.Context
 	Processor() *processor.Processor
+	Consumer() *consumer.Consumer
 }
 
 type Server struct {
@@ -100,6 +102,9 @@ func NewServer(nrf nrf, tlsKeyLogPath string) (*Server, error) {
 func (s *Server) Run(traceCtx context.Context, wg *sync.WaitGroup) error {
 	wg.Add(1)
 	go s.startServer(wg)
+
+	// example: use of Consumer()
+	// s.Consumer().RegisterNFInstance(s.CancelContext())
 	return nil
 }
 

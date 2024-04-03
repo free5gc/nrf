@@ -12,6 +12,7 @@ import (
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/internal/sbi"
+	"github.com/free5gc/nrf/internal/sbi/consumer"
 	"github.com/free5gc/nrf/internal/sbi/processor"
 	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/util/mongoapi"
@@ -23,6 +24,7 @@ type NrfApp struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	proc      *processor.Processor
+	consumer  *consumer.Consumer
 	sbiServer *sbi.Server
 	wg        sync.WaitGroup
 }
@@ -44,6 +46,12 @@ func NewApp(
 		return nrf, err
 	}
 	nrf.proc = p
+
+	consumer, err := consumer.NewConsumer(nrf)
+	if err != nil {
+		return nrf, err
+	}
+	nrf.consumer = consumer
 
 	nrf.ctx, nrf.cancel = context.WithCancel(ctx)
 	err = nrf_context.InitNrfContext()
@@ -72,6 +80,10 @@ func (a *NrfApp) CancelContext() context.Context {
 
 func (a *NrfApp) Processor() *processor.Processor {
 	return a.proc
+}
+
+func (a *NrfApp) Consumer() *consumer.Consumer {
+	return a.consumer
 }
 
 func (a *NrfApp) SetLogEnable(enable bool) {

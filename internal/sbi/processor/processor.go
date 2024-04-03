@@ -4,12 +4,14 @@ import (
 	"context"
 
 	nrf_context "github.com/free5gc/nrf/internal/context"
+	"github.com/free5gc/nrf/internal/sbi/consumer"
 	"github.com/free5gc/nrf/pkg/factory"
 )
 
 type nrf interface {
 	Config() *factory.Config
 	Context() *nrf_context.NRFContext
+	Consumer() *consumer.Consumer
 	CancelContext() context.Context
 }
 
