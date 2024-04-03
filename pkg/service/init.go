@@ -4,23 +4,16 @@ import (
 	"context"
 	"io/ioutil"
 	"os"
-	"os/signal"
 	"runtime/debug"
-	"syscall"
-	"time"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/internal/sbi"
-	"github.com/free5gc/nrf/internal/sbi/accesstoken"
-	"github.com/free5gc/nrf/internal/sbi/discovery"
-	"github.com/free5gc/nrf/internal/sbi/management"
 	"github.com/free5gc/nrf/internal/sbi/processor"
 	"github.com/free5gc/nrf/pkg/factory"
-	"github.com/free5gc/util/httpwrapper"
-	logger_util "github.com/free5gc/util/logger"
 	"github.com/free5gc/util/mongoapi"
 )
 
@@ -31,6 +24,7 @@ type NrfApp struct {
 	cancel    context.CancelFunc
 	proc      *processor.Processor
 	sbiServer *sbi.Server
+	wg        sync.WaitGroup
 }
 
 func NewApp(
@@ -38,7 +32,10 @@ func NewApp(
 	cfg *factory.Config,
 	tlsKeyLogPath string,
 ) (*NrfApp, error) {
-	nrf := &NrfApp{cfg: cfg}
+	nrf := &NrfApp{
+		cfg: cfg,
+		wg:  sync.WaitGroup{},
+	}
 	nrf.SetLogEnable(cfg.GetLogEnable())
 	nrf.SetLogLevel(cfg.GetLogLevel())
 	nrf.SetReportCaller(cfg.GetLogReportCaller())
@@ -127,60 +124,41 @@ func (a *NrfApp) Start(tlsKeyLogPath string) {
 	}
 	logger.InitLog.Infoln("Server starting")
 
-	router := logger_util.NewGinWithLogrus(logger.GinLog)
+	a.wg.Add(1)
+	go a.listenShutdownEvent()
 
-	accesstoken.AddService(router)
-	discovery.AddService(router)
-	management.AddService(router)
-
-	signalChannel := make(chan os.Signal, 1)
-	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		defer func() {
-			if p := recover(); p != nil {
-				// Print stack for panic to log. Fatalf() will let program exit.
-				logger.InitLog.Fatalf("panic: %v\n%s", p, string(debug.Stack()))
-			}
-		}()
-
-		<-signalChannel
-		// Waiting for other NFs to deregister
-		time.Sleep(2 * time.Second)
-		a.Terminate()
-		os.Exit(0)
-	}()
-
-	bindAddr := factory.NrfConfig.GetSbiBindingAddr()
-	logger.InitLog.Infof("Binding addr: [%s]", bindAddr)
-	server, err := httpwrapper.NewHttp2Server(bindAddr, tlsKeyLogPath, router)
-	if err != nil {
-		logger.InitLog.Warnf("Initialize HTTP server: +%v", err)
-		return
-	}
-
-	serverScheme := factory.NrfConfig.GetSbiScheme()
-	if serverScheme == "http" {
-		err = server.ListenAndServe()
-	} else if serverScheme == "https" {
-		// TODO: support TLS mutual authentication for OAuth
-		err = server.ListenAndServeTLS(
-			factory.NrfConfig.GetNrfCertPemPath(),
-			factory.NrfConfig.GetNrfPrivKeyPath())
-	}
-
-	if err != nil {
-		logger.InitLog.Fatalf("HTTP server setup failed: %+v", err)
+	if err := a.sbiServer.Run(context.Background(), &a.wg); err != nil {
+		logger.InitLog.Fatalf("Run SBI server failed: %+v", err)
 	}
 }
 
-func (a *NrfApp) Terminate() {
-	logger.InitLog.Infof("Terminating NRF...")
+func (a *NrfApp) listenShutdownEvent() {
+	defer func() {
+		if p := recover(); p != nil {
+			// Print stack for panic to log. Fatalf() will let program exit.
+			logger.InitLog.Fatalf("panic: %v\n%s", p, string(debug.Stack()))
+		}
+		a.wg.Done()
+	}()
 
-	logger.InitLog.Infof("Remove NF Profile...")
+	<-a.ctx.Done()
+
+	if a.sbiServer != nil {
+		a.sbiServer.Stop(context.Background())
+	}
+
 	err := mongoapi.Drop("NfProfile")
 	if err != nil {
 		logger.InitLog.Errorf("Drop NfProfile collection failed: %+v", err)
 	}
+}
 
-	logger.InitLog.Infof("NRF terminated")
+func (a *NrfApp) WaitRoutineStopped() {
+	a.wg.Wait()
+	logger.MainLog.Infof("NRF App is terminated")
+}
+
+func (a *NrfApp) Stop() {
+	a.cancel()
+	a.WaitRoutineStopped()
 }
