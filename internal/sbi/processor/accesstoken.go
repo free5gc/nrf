@@ -6,6 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt"
+	"go.mongodb.org/mongo-driver/bson"
+
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/pkg/factory"
@@ -14,8 +17,6 @@ import (
 	"github.com/free5gc/openapi/oauth"
 	"github.com/free5gc/util/mapstruct"
 	"github.com/free5gc/util/mongoapi"
-	"github.com/golang-jwt/jwt"
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) *HandlerResponse {

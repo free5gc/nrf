@@ -152,6 +152,7 @@ func (s *Server) startServer(wg *sync.WaitGroup) {
 	logger.SBILog.Warnf("SBI server (listen on %s) stopped", s.httpServer.Addr)
 }
 
+// nolint
 func checkContentTypeIsJSON(gc *gin.Context) (string, error) {
 	var err error
 	contentType := gc.GetHeader("Content-Type")
@@ -169,6 +170,7 @@ func checkContentTypeIsJSON(gc *gin.Context) (string, error) {
 	return contentType, nil
 }
 
+// nolint
 func (s *Server) deserializeData(gc *gin.Context, data interface{}, contentType string) error {
 	reqBody, err := gc.GetRawData()
 	if err != nil {
