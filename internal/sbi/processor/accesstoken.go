@@ -48,7 +48,7 @@ func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) *Handler
 	token := jwt.NewWithClaims(jwt.GetSigningMethod("RS512"), accessTokenClaims)
 	accessToken, err := token.SignedString(nrfCtx.NrfPrivKey)
 	if err != nil {
-		logger.AccTokenLog.Warnln("Signed string error: %v", err)
+		logger.AccTokenLog.Warnf("Signed string error: %v", err)
 		pd := openapi.ProblemDetailsMalformedReqSyntax("invalid_request")
 		return &HandlerResponse{int(pd.Status), nil, pd}
 	}
