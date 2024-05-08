@@ -310,6 +310,19 @@ func (c *Config) GetCertBasePath() string {
 	return dir
 }
 
+func (c *Config) GetCertPemPath() string {
+	c.RLock()
+	defer c.RUnlock()
+	return c.Configuration.Sbi.Cert.Pem
+}
+
+func (c *Config) GetCertKeyPath() string {
+	c.RLock()
+	defer c.RUnlock()
+	return c.Configuration.Sbi.Cert.Key
+}
+
+
 func (c *Config) GetNrfPrivKeyPath() string {
 	c.RLock()
 	defer c.RUnlock()

@@ -25,82 +25,94 @@
 	 logger_util "github.com/free5gc/util/logger"
  )
 
-func (s *Server) getAccessTokenEndpoints() []Endpoint {
-	return []Endpoint{
+func (s *Server) getAccessTokenRoutes() []Route {
+	return []Route{
+		{
+			Method:  http.MethodGet,
+			Pattern: "/",
+			APIFunc: func(ctx *gin.Context) {
+				ctx.JSON(http.StatusOK, gin.H{"status": "Hello World!"})
+			},
+		},
 		{
 			Method:  http.MethodPost,
 			Pattern: "/oauth2/token",
 			APIFunc: s.apiAccessTokenRequest,
-		},
-	}
+			},
+	},
 }
 
  // AccessTokenRequest - Access Token Request
  func (s *Server) apiAccessTokenRequest(c *gin.Context) {
-	logger.AccTokenLog.Debugln("Handle AccessTokenRequest")
- 
-	 if !factory.NrfConfig.GetOAuth() {
-		 rsp := models.ProblemDetails{
-			 Title:  "OAuth2 not enable",
-			 Status: http.StatusBadRequest,
-		 }
-		 c.JSON(http.StatusBadRequest, rsp)
-		 return
-	 }
- 
-	 var accessTokenReq models.AccessTokenReq
-	 var r *http.Request = c.Request
- 
-	 // Request parser
-	 err := r.ParseForm()
-	 if err != nil {
-		 logger.AccTokenLog.Errorf(err.Error())
-		 return
-	 }
-	 rt := reflect.TypeOf(accessTokenReq)
-	 for key, value := range r.PostForm {
-		 var name string
-		 var vt reflect.Type
-		 for i := 0; i < rt.NumField(); i++ {
-			 if tag := rt.Field(i).Tag.Get("yaml"); tag == key {
-				 name = rt.Field(i).Name
-				 vt = rt.Field(i).Type
-				 break
-			 }
-		 }
-		 if vt.Name() == "string" || vt.Name() == "NfType" {
-			 reflect.ValueOf(&accessTokenReq).Elem().FieldByName(name).SetString(value[0])
-		 } else {
-			 plmnid := models.PlmnId{}
-			 err = json.Unmarshal([]byte(value[0]), &plmnid)
-			 if err != nil {
-				 problemDetail := "[Request Body] " + err.Error()
-				 rsp := models.ProblemDetails{
-					 Title:  "Json Unmarshal Error",
-					 Status: http.StatusBadRequest,
-					 Detail: problemDetail,
-				 }
-				 logger.AccTokenLog.Errorln(problemDetail)
-				 c.JSON(http.StatusBadRequest, rsp)
-				 return
-			 }
-			 reflectvalue := reflect.ValueOf(&plmnid)
-			 reflect.ValueOf(&accessTokenReq).Elem().FieldByName(name).Set(reflectvalue)
-		 }
-	 }
- 
-	 if err != nil {
-		 problemDetail := "[Request Body] " + err.Error()
-		 rsp := models.ProblemDetails{
-			 Title:  "Malformed request syntax",
-			 Status: http.StatusBadRequest,
-			 Detail: problemDetail,
-		 }
-		 logger.AccTokenLog.Warnln(problemDetail)
-		 c.JSON(http.StatusBadRequest, rsp)
-		 return
-	 }
- 
-	 hdlRsp := s.Processor().AccessTokenProcedure(accessTokenReq)
-	 s.buildAndSendHttpResponse(c, hdlRsp, false)
- }
+	logger.AccTokenLog.Infoln("In apiAccessTokenRequest")
+
+	if !factory.NrfConfig.GetOAuth() {
+		rsp := models.ProblemDetails{
+			Title:  "OAuth2 not enable",
+			Status: http.StatusBadRequest,
+		}
+		c.JSON(http.StatusBadRequest, rsp)
+		return
+	}
+
+	var accessTokenReq models.AccessTokenReq
+	var r *http.Request = c.Request
+
+	// Request parser
+	err := r.ParseForm()
+	if err != nil {
+		logger.AccTokenLog.Errorf(err.Error())
+		return
+	}
+	rt := reflect.TypeOf(accessTokenReq)
+	for key, value := range r.PostForm {
+		var name string
+		var vt reflect.Type
+		for i := 0; i < rt.NumField(); i++ {
+			if tag := rt.Field(i).Tag.Get("yaml"); tag == key {
+				name = rt.Field(i).Name
+				vt = rt.Field(i).Type
+				break
+			}
+		}
+		if vt.Name() == "string" || vt.Name() == "NfType" {
+			reflect.ValueOf(&accessTokenReq).Elem().FieldByName(name).SetString(value[0])
+		} else {
+			plmnid := models.PlmnId{}
+			err = json.Unmarshal([]byte(value[0]), &plmnid)
+			if err != nil {
+				problemDetail := "[Request Body] " + err.Error()
+				rsp := models.ProblemDetails{
+					Title:  "Json Unmarshal Error",
+					Status: http.StatusBadRequest,
+					Detail: problemDetail,
+				}
+				logger.AccTokenLog.Errorln(problemDetail)
+				c.JSON(http.StatusBadRequest, rsp)
+				return
+			}
+			reflectvalue := reflect.ValueOf(&plmnid)
+			reflect.ValueOf(&accessTokenReq).Elem().FieldByName(name).Set(reflectvalue)
+		}
+	}
+
+	err = c.Bind(&accessTokenReq)
+	if err != nil {
+		problemDetail := "[Request Body] " + err.Error()
+		rsp := models.ProblemDetails{
+			Title:  "Malformed request syntax",
+			Status: http.StatusBadRequest,
+			Detail: problemDetail,
+		}
+		logger.AccTokenLog.Warnln(problemDetail)
+		c.JSON(http.StatusBadRequest, rsp)
+		return
+	}
+
+	req := httpwrapper.NewRequest(c.Request, accessTokenReq)
+	req.Params["paramName"] = c.Params.ByName("paramName")
+
+	httpResponse := producer.HandleAccessTokenRequest(req)
+
+	c.JSON(httpResponse.Status, httpResponse.Body)
+}
