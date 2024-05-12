@@ -17,9 +17,9 @@ import (
 	"github.com/free5gc/openapi/models"
 	timedecode "github.com/free5gc/util/mapstruct"
 	"github.com/free5gc/util/mongoapi"
-	"github.com/free5gc/nrf/internal/sbi/producer"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/util/httpwrapper"
+	"github.com/free5gc/nrf/internal/sbi/processor"
 )
 
 func (s *Server) getNFManagementRoutes() []Route {
@@ -76,7 +76,7 @@ func (s *Server) getNFManagementRoutes() []Route {
 
 // getDeregisterNFInstance - Deregisters a given NF Instance
 func (s *Server) getDeregisterNFInstance(c *gin.Context) {
-	auth_err := authorizationCheck(c)
+	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
 		return
@@ -85,7 +85,7 @@ func (s *Server) getDeregisterNFInstance(c *gin.Context) {
 	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["nfInstanceID"] = c.Params.ByName("nfInstanceID")
 
-	httpResponse := producer.HandleNFDeregisterRequest(req)
+	httpResponse := processor.HandleNFDeregisterRequest(req)
 
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
@@ -103,7 +103,7 @@ func (s *Server) getDeregisterNFInstance(c *gin.Context) {
 
 // GetNFInstance - Read the profile of a given NF Instance
 func (s *Server) getNFInstance(c *gin.Context) {
-	auth_err := authorizationCheck(c)
+	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
 		return
@@ -112,7 +112,7 @@ func (s *Server) getNFInstance(c *gin.Context) {
 	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["nfInstanceID"] = c.Params.ByName("nfInstanceID")
 
-	httpResponse := producer.HandleGetNFInstanceRequest(req)
+	httpResponse := processor.HandleGetNFInstanceRequest(req)
 
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
@@ -170,7 +170,7 @@ func (s *Server) getRegisterNFInstance(c *gin.Context) {
 	req := httpwrapper.NewRequest(c.Request, nfprofile)
 
 	// step 4: call producer
-	httpResponse := producer.HandleNFRegisterRequest(req)
+	httpResponse := processor.HandleNFRegisterRequest(req)
 
 	for key, val := range httpResponse.Header {
 		c.Header(key, val[0])
@@ -192,7 +192,7 @@ func (s *Server) getRegisterNFInstance(c *gin.Context) {
 
 // UpdateNFInstance - Update NF Instance profile
 func (s *Server) getUpdateNFInstance(c *gin.Context) {
-	auth_err := authorizationCheck(c)
+	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
 		return
@@ -216,7 +216,7 @@ func (s *Server) getUpdateNFInstance(c *gin.Context) {
 	req.Params["nfInstanceID"] = c.Params.ByName("nfInstanceID")
 	req.Body = requestBody
 
-	httpResponse := producer.HandleUpdateNFInstanceRequest(req)
+	httpResponse := processor.HandleUpdateNFInstanceRequest(req)
 
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
@@ -234,7 +234,7 @@ func (s *Server) getUpdateNFInstance(c *gin.Context) {
 
 // GetNFInstances - Retrieves a collection of NF Instances
 func (s *Server) getNFInstances(c *gin.Context) {
-	auth_err := authorizationCheck(c)
+	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
 		return
@@ -243,7 +243,7 @@ func (s *Server) getNFInstances(c *gin.Context) {
 	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Query = c.Request.URL.Query()
 
-	httpResponse := producer.HandleGetNFInstancesRequest(req)
+	httpResponse := processor.HandleGetNFInstancesRequest(req)
 
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
@@ -261,7 +261,7 @@ func (s *Server) getNFInstances(c *gin.Context) {
 
 // RemoveSubscription - Deletes a subscription
 func (s *Server) getRemoveSubscription(c *gin.Context) {
-	auth_err := authorizationCheck(c)
+	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
 		return
@@ -270,7 +270,7 @@ func (s *Server) getRemoveSubscription(c *gin.Context) {
 	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["subscriptionID"] = c.Params.ByName("subscriptionID")
 
-	httpResponse := producer.HandleRemoveSubscriptionRequest(req)
+	httpResponse := processor.HandleRemoveSubscriptionRequest(req)
 
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
@@ -288,7 +288,7 @@ func (s *Server) getRemoveSubscription(c *gin.Context) {
 
 // UpdateSubscription - Updates a subscription
 func (s *Server) getUpdateSubscription(c *gin.Context) {
-	auth_err := authorizationCheck(c)
+	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
 		return
@@ -311,7 +311,7 @@ func (s *Server) getUpdateSubscription(c *gin.Context) {
 	req.Params["subscriptionID"] = c.Params.ByName("subscriptionID")
 	req.Body = requestBody
 
-	httpResponse := producer.HandleUpdateSubscriptionRequest(req)
+	httpResponse := processor.HandleUpdateSubscriptionRequest(req)
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
 		logger.NfmLog.Warnln(err)
@@ -330,7 +330,7 @@ func (s *Server) getUpdateSubscription(c *gin.Context) {
 
 // CreateSubscription - Create a new subscription
 func (s *Server) getCreateSubscription(c *gin.Context) {
-	auth_err := authorizationCheck(c)
+	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
 		return
@@ -368,7 +368,7 @@ func (s *Server) getCreateSubscription(c *gin.Context) {
 
 	req := httpwrapper.NewRequest(c.Request, subscription)
 
-	httpResponse := producer.HandleCreateSubscriptionRequest(req)
+	httpResponse := processor.HandleCreateSubscriptionRequest(req)
 	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	if err != nil {
 		logger.NfmLog.Errorln(err)

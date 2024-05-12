@@ -15,8 +15,7 @@ import (
 
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
-	"github.com/free5gc/nrf/internal/sbi/consumer"
-	"github.com/free5gc/nrf/internal/sbi"
+	logger_util "github.com/free5gc/util/logger"
 	"github.com/free5gc/nrf/internal/sbi/processor"
 	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/openapi"
@@ -31,23 +30,6 @@ type Route struct {
 	Method  string
 	Pattern string
 	APIFunc gin.HandlerFunc
-}
-
-func applyRoutes(group *gin.RouterGroup, routes []Route) {
-	for _, route := range routes {
-		switch route.Method {
-		case "GET":
-			group.GET(route.Pattern, route.APIFunc)
-		case "POST":
-			group.POST(route.Pattern, route.APIFunc)
-		case "PUT":
-			group.PUT(route.Pattern, route.APIFunc)
-		case "PATCH":
-			group.PATCH(route.Pattern, route.APIFunc)
-		case "DELETE":
-			group.DELETE(route.Pattern, route.APIFunc)
-		}
-	}
 }
 
 type Server struct {
@@ -65,8 +47,42 @@ type nrf interface {
 	Processor() *processor.Processor
 }
 
-func (s *Server) authorizationCheck(c *gin.Context) {
-	
+type RouteGroup interface {
+	applyRoutes(engine *gin.Engine) *gin.RouterGroup
+}
+
+// Routes is the list of the generated Route.
+type Routes []Route
+
+// NewRouter returns a new router.
+func (s *Server) NewRouter() *gin.Engine {
+	router := logger_util.NewGinWithLogrus(logger.GinLog)
+
+	nfmGroup := router.Group(factory.NrfNfmResUriPrefix)
+	applyRoutes(nfmGroup, s.getNFManagementRoutes())
+	return router
+}
+
+func authorizationCheck(c *gin.Context, serviceName string) error {
+	token := c.Request.Header.Get("Authorization")
+	return nrf_context.GetSelf().AuthorizationCheck(token, serviceName) //name: nnrf-disc & nnrf-nfm
+}
+
+func applyRoutes(group *gin.RouterGroup, routes []Route) {
+	for _, route := range routes {
+		switch route.Method {
+		case "GET":
+			group.GET(route.Pattern, route.APIFunc)
+		case "POST":
+			group.POST(route.Pattern, route.APIFunc)
+		case "PUT":
+			group.PUT(route.Pattern, route.APIFunc)
+		case "PATCH":
+			group.PATCH(route.Pattern, route.APIFunc)
+		case "DELETE":
+			group.DELETE(route.Pattern, route.APIFunc)
+		}
+	}
 }
 
 func NewServer(nrf nrf, tlsKeyLogPath string) (*Server, error) {

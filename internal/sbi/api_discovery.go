@@ -15,11 +15,10 @@
 	 "github.com/gin-gonic/gin"
  
 	 "github.com/free5gc/nrf/internal/logger"
-	 "github.com/free5gc/nrf/internal/sbi/producer"
+	 "github.com/free5gc/nrf/internal/sbi/processor"
 	 "github.com/free5gc/openapi"
 	 "github.com/free5gc/openapi/models"
 	 "github.com/free5gc/util/httpwrapper"
-	 "github.com/free5gc/nrf/internal/sbi"
  )
  
  func (s *Server) getNFDiscoveryRoutes() []Route {
@@ -41,7 +40,7 @@
  
  // SearchNFInstances - Search a collection of NF Instances
  func (s *Server) getSearchNFInstances(c *gin.Context) {
-	 auth_err := authorizationCheck(c)
+	 auth_err :=authorizationCheck(c, "nnrf-disc")
 	 if auth_err != nil {
 		 c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
 		 return
@@ -49,7 +48,7 @@
  
 	 req := httpwrapper.NewRequest(c.Request, nil)
 	 req.Query = c.Request.URL.Query()
-	 httpResponse := producer.HandleNFDiscoveryRequest(req)
+	 httpResponse := processor.HandleNFDiscoveryRequest(req)
  
 	 responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	 if err != nil {

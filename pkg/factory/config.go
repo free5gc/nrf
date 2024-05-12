@@ -289,6 +289,8 @@ func (c *Config) GetSbiUri() string {
 }
 
 func (c *Config) GetOAuth() bool {
+	return false
+
 	c.RLock()
 	defer c.RUnlock()
 	return c.Configuration.Sbi.OAuth
