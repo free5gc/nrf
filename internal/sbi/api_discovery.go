@@ -15,7 +15,6 @@
 	 "github.com/gin-gonic/gin"
  
 	 "github.com/free5gc/nrf/internal/logger"
-	 "github.com/free5gc/nrf/internal/sbi/processor"
 	 "github.com/free5gc/openapi"
 	 "github.com/free5gc/openapi/models"
 	 "github.com/free5gc/util/httpwrapper"
@@ -48,7 +47,7 @@
  
 	 req := httpwrapper.NewRequest(c.Request, nil)
 	 req.Query = c.Request.URL.Query()
-	 httpResponse := processor.HandleNFDiscoveryRequest(req)
+	 httpResponse := s.processor.HandleNFDiscoveryRequest(req)
  
 	 responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	 if err != nil {

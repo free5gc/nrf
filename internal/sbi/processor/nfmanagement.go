@@ -23,7 +23,7 @@ import (
 	"github.com/free5gc/util/mongoapi"
 )
 
-func HandleNFDeregisterRequest(request *httpwrapper.Request) *httpwrapper.Response {
+func (p *Processor) HandleNFDeregisterRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.NfmLog.Infoln("Handle NFDeregisterRequest")
 	nfInstanceId := request.Params["nfInstanceID"]
 
@@ -37,7 +37,7 @@ func HandleNFDeregisterRequest(request *httpwrapper.Request) *httpwrapper.Respon
 	}
 }
 
-func HandleGetNFInstanceRequest(request *httpwrapper.Request) *httpwrapper.Response {
+func (p *Processor) HandleGetNFInstanceRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.NfmLog.Infoln("Handle GetNFInstanceRequest")
 	nfInstanceId := request.Params["nfInstanceID"]
 
@@ -54,7 +54,7 @@ func HandleGetNFInstanceRequest(request *httpwrapper.Request) *httpwrapper.Respo
 	}
 }
 
-func HandleNFRegisterRequest(request *httpwrapper.Request) *httpwrapper.Response {
+func (p *Processor) HandleNFRegisterRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.NfmLog.Infoln("Handle NFRegisterRequest")
 	nfProfile := request.Body.(models.NfProfile)
 
@@ -79,7 +79,7 @@ func HandleNFRegisterRequest(request *httpwrapper.Request) *httpwrapper.Response
 	return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 }
 
-func HandleUpdateNFInstanceRequest(request *httpwrapper.Request) *httpwrapper.Response {
+func (p *Processor) HandleUpdateNFInstanceRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.NfmLog.Infoln("Handle UpdateNFInstanceRequest")
 	nfInstanceID := request.Params["nfInstanceID"]
 	patchJSON := request.Body.([]byte)
@@ -92,7 +92,7 @@ func HandleUpdateNFInstanceRequest(request *httpwrapper.Request) *httpwrapper.Re
 	}
 }
 
-func HandleGetNFInstancesRequest(request *httpwrapper.Request) *httpwrapper.Response {
+func (p *Processor) HandleGetNFInstancesRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.NfmLog.Infoln("Handle GetNFInstancesRequest")
 	nfType := request.Query.Get("nf-type")
 	limit_param := request.Query.Get("limit")
@@ -136,7 +136,7 @@ func HandleGetNFInstancesRequest(request *httpwrapper.Request) *httpwrapper.Resp
 	return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 }
 
-func HandleRemoveSubscriptionRequest(request *httpwrapper.Request) *httpwrapper.Response {
+func (p *Processor) HandleRemoveSubscriptionRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.NfmLog.Infoln("Handle RemoveSubscription")
 	subscriptionID := request.Params["subscriptionID"]
 
@@ -145,7 +145,7 @@ func HandleRemoveSubscriptionRequest(request *httpwrapper.Request) *httpwrapper.
 	return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 }
 
-func HandleUpdateSubscriptionRequest(request *httpwrapper.Request) *httpwrapper.Response {
+func (p *Processor) HandleUpdateSubscriptionRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.NfmLog.Infoln("Handle UpdateSubscription")
 	subscriptionID := request.Params["subscriptionID"]
 	patchJSON := request.Body.([]byte)
@@ -159,7 +159,7 @@ func HandleUpdateSubscriptionRequest(request *httpwrapper.Request) *httpwrapper.
 	}
 }
 
-func HandleCreateSubscriptionRequest(request *httpwrapper.Request) *httpwrapper.Response {
+func (p *Processor) HandleCreateSubscriptionRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.NfmLog.Infoln("Handle CreateSubscriptionRequest")
 	subscription := request.Body.(models.NrfSubscriptionData)
 

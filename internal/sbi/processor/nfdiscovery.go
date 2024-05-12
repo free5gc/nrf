@@ -18,7 +18,7 @@ import (
 	"github.com/free5gc/util/mongoapi"
 )
 
-func HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
+func (p *Processor) HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	// Get all query parameters
 	logger.DiscLog.Infoln("Handle NFDiscoveryRequest")
 
