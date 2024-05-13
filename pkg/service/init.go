@@ -2,7 +2,6 @@ package service
 
 import (
 	"io"
-	"context"
 	"os"
 	"sync"
 	"runtime/debug"
