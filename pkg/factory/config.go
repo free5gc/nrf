@@ -30,6 +30,7 @@ const (
 	NrfSbiDefaultScheme          = "https"
 	NrfNfmResUriPrefix           = "/nnrf-nfm/v1"
 	NrfDiscResUriPrefix          = "/nnrf-disc/v1"
+	NrfAccTokenResUriPrefix      = ""
 )
 
 type Config struct {
@@ -289,8 +290,6 @@ func (c *Config) GetSbiUri() string {
 }
 
 func (c *Config) GetOAuth() bool {
-	return false
-
 	c.RLock()
 	defer c.RUnlock()
 	return c.Configuration.Sbi.OAuth
@@ -323,7 +322,6 @@ func (c *Config) GetCertKeyPath() string {
 	defer c.RUnlock()
 	return c.Configuration.Sbi.Cert.Key
 }
-
 
 func (c *Config) GetNrfPrivKeyPath() string {
 	c.RLock()

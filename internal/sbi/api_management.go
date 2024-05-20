@@ -2,23 +2,21 @@ package sbi
 
 import (
 	"net"
+	"net/http"
 	"reflect"
 	"strconv"
 	"time"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
-
-
 	"github.com/mitchellh/mapstructure"
 	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/free5gc/nrf/internal/logger"
+	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
+	"github.com/free5gc/util/httpwrapper"
 	timedecode "github.com/free5gc/util/mapstruct"
 	"github.com/free5gc/util/mongoapi"
-	"github.com/free5gc/openapi"
-	"github.com/free5gc/util/httpwrapper"
 )
 
 func (s *Server) getNFManagementRoutes() []Route {
@@ -31,42 +29,42 @@ func (s *Server) getNFManagementRoutes() []Route {
 			},
 		},
 		{
-			Method: http.MethodDelete,
+			Method:  http.MethodDelete,
 			Pattern: "/nf-instances/:nfInstanceID",
 			APIFunc: s.getDeregisterNFInstance,
 		},
 		{
-			Method: http.MethodGet,
+			Method:  http.MethodGet,
 			Pattern: "/nf-instances/:nfInstanceID",
 			APIFunc: s.getNFInstance,
 		},
 		{
-			Method: http.MethodPut,
+			Method:  http.MethodPut,
 			Pattern: "/nf-instances/:nfInstanceID",
 			APIFunc: s.getRegisterNFInstance,
 		},
 		{
-			Method: http.MethodPatch,
+			Method:  http.MethodPatch,
 			Pattern: "/nf-instances/:nfInstanceID",
 			APIFunc: s.getUpdateNFInstance,
 		},
 		{
-			Method: http.MethodGet,
+			Method:  http.MethodGet,
 			Pattern: "/nf-instances",
 			APIFunc: s.getNFInstances,
 		},
 		{
-			Method: http.MethodDelete,
+			Method:  http.MethodDelete,
 			Pattern: "/subscriptions/:subscriptionID",
 			APIFunc: s.getRemoveSubscription,
 		},
 		{
-			Method: http.MethodPatch,
+			Method:  http.MethodPatch,
 			Pattern: "/subscriptions/:subscriptionID",
 			APIFunc: s.getUpdateSubscription,
 		},
 		{
-			Method: http.MethodPost,
+			Method:  http.MethodPost,
 			Pattern: "/subscriptions",
 			APIFunc: s.getCreateSubscription,
 		},
@@ -692,5 +690,3 @@ func (s *Server) DecodeNfProfile(source interface{}, format string) (models.NfPr
 	}
 	return target, nil
 }
-
-

@@ -15,11 +15,11 @@ import (
 
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
-	logger_util "github.com/free5gc/util/logger"
 	"github.com/free5gc/nrf/internal/sbi/processor"
 	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/util/httpwrapper"
+	logger_util "github.com/free5gc/util/logger"
 )
 
 const (
@@ -60,12 +60,19 @@ func (s *Server) NewRouter() *gin.Engine {
 
 	nfmGroup := router.Group(factory.NrfNfmResUriPrefix)
 	applyRoutes(nfmGroup, s.getNFManagementRoutes())
+
+	nfdisGroup := router.Group(factory.NrfDiscResUriPrefix)
+	applyRoutes(nfdisGroup, s.getNFDiscoveryRoutes())
+
+	accTokenGroup := router.Group(factory.NrfAccTokenResUriPrefix)
+	applyRoutes(accTokenGroup, s.getAccessTokenRoutes())
+
 	return router
 }
 
 func authorizationCheck(c *gin.Context, serviceName string) error {
 	token := c.Request.Header.Get("Authorization")
-	return nrf_context.GetSelf().AuthorizationCheck(token, serviceName) //name: nnrf-disc & nnrf-nfm
+	return nrf_context.GetSelf().AuthorizationCheck(token, serviceName) // name: nnrf-disc & nnrf-nfm
 }
 
 func applyRoutes(group *gin.RouterGroup, routes []Route) {
@@ -90,19 +97,19 @@ func NewServer(nrf nrf, tlsKeyLogPath string) (*Server, error) {
 		nrf: nrf,
 	}
 
-s.router.Use(cors.New(cors.Config{
-	AllowMethods: []string{"GET", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"},
-	AllowHeaders: []string{
-		"Origin", "Content-Length", "Content-Type", "User-Agent",
-		"Referrer", "Host", "Token", "X-Requested-With",
-	},
-	ExposeHeaders:    []string{"Content-Length"},
-	AllowCredentials: true,
-	AllowAllOrigins:  true,
-	MaxAge:           CorsConfigMaxAge,
-}))
+	s.router.Use(cors.New(cors.Config{
+		AllowMethods: []string{"GET", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"},
+		AllowHeaders: []string{
+			"Origin", "Content-Length", "Content-Type", "User-Agent",
+			"Referrer", "Host", "Token", "X-Requested-With",
+		},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		AllowAllOrigins:  true,
+		MaxAge:           CorsConfigMaxAge,
+	}))
 
-cfg := s.Config()
+	cfg := s.Config()
 	bindAddr := cfg.GetSbiBindingAddr()
 	logger.SBILog.Infof("Binding addr: [%s]", bindAddr)
 	var err error

@@ -1,4 +1,5 @@
 package processor
+
 import (
 	"crypto/x509"
 	"net/http"
@@ -11,11 +12,11 @@ import (
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/pkg/factory"
+	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/openapi/oauth"
 	"github.com/free5gc/util/mapstruct"
 	"github.com/free5gc/util/mongoapi"
-	"github.com/free5gc/openapi"
 )
 
 func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) *HandlerResponse {
@@ -51,7 +52,7 @@ func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) *Handler
 		logger.AccTokenLog.Warnf("Signed string error: %v", err)
 		pd := openapi.ProblemDetailsMalformedReqSyntax("invalid_request")
 		return &HandlerResponse{int(pd.Status), nil, pd}
-		}
+	}
 
 	return &HandlerResponse{
 		http.StatusOK,

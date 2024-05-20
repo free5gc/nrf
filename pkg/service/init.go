@@ -1,10 +1,11 @@
 package service
 
 import (
+	"context"
 	"io"
 	"os"
-	"sync"
 	"runtime/debug"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 
@@ -26,19 +27,38 @@ type NrfApp struct {
 	wg        sync.WaitGroup
 }
 
-func NewApp(cfg *factory.Config) (*NrfApp, error) {
-	nrf := &NrfApp{cfg: cfg}
+func NewApp(ctx context.Context, cfg *factory.Config, tlsKeyLogPath string) (*NrfApp, error) {
+	nrf := &NrfApp{cfg: cfg, wg: sync.WaitGroup{}}
 	nrf.SetLogEnable(cfg.GetLogEnable())
 	nrf.SetLogLevel(cfg.GetLogLevel())
 	nrf.SetReportCaller(cfg.GetLogReportCaller())
-
-	err := nrf_context.InitNrfContext()
+	p, err := processor.NewProcessor(nrf)
 	if err != nil {
-		logger.InitLog.Errorln(err)
 		return nrf, err
 	}
+	nrf.proc = p
+
 	nrf.nrfCtx = nrf_context.GetSelf()
+	if nrf.sbiServer, err = sbi.NewServer(nrf, tlsKeyLogPath); err != nil {
+		return nil, err
+	}
 	return nrf, nil
+}
+
+func (a *NrfApp) Config() *factory.Config {
+	return a.cfg
+}
+
+func (a *NrfApp) Context() *nrf_context.NRFContext {
+	return a.nrfCtx
+}
+
+func (a *NrfApp) CancelContext() context.Context {
+	return a.ctx
+}
+
+func (a *NrfApp) Processor() *processor.Processor {
+	return a.proc
 }
 
 func (a *NrfApp) SetLogEnable(enable bool) {
@@ -106,16 +126,24 @@ func (a *NrfApp) listenShutdownEvent() {
 		}
 		a.wg.Done()
 	}()
-}
 
-func (a *NrfApp) Terminate() {
-	logger.InitLog.Infof("Terminating NRF...")
+	<-a.ctx.Done()
 
-	logger.InitLog.Infof("Remove NF Profile...")
+	if a.sbiServer != nil {
+		a.sbiServer.Stop(context.Background())
+	}
 	err := mongoapi.Drop("NfProfile")
 	if err != nil {
 		logger.InitLog.Errorf("Drop NfProfile collection failed: %+v", err)
 	}
+}
 
-	logger.InitLog.Infof("NRF terminated")
+func (a *NrfApp) WaitRoutineStopped() {
+	a.wg.Wait()
+	logger.MainLog.Infof("NRF App is terminated")
+}
+
+func (a *NrfApp) Stop() {
+	a.cancel()
+	a.WaitRoutineStopped()
 }

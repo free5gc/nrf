@@ -98,7 +98,9 @@ func (s *Server) apiAccessTokenRequest(c *gin.Context) {
 		}
 	}
 
-	err = c.Bind(&accessTokenReq)
+	if err1 := s.bindData(c, &accessTokenReq); err1 != nil {
+		return
+	}
 	if err != nil {
 		problemDetail := "[Request Body] " + err.Error()
 		rsp := models.ProblemDetails{
