@@ -27,9 +27,9 @@ func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) *Handler
 	tokenType := "Bearer"
 	now := int32(time.Now().Unix())
 
-	AccTokenErr := AccessTokenScopeCheck(request)
-	if AccTokenErr != nil {
-		pd := openapi.ProblemDetailsMalformedReqSyntax(AccTokenErr.Error)
+	accTokenErr := AccessTokenScopeCheck(request)
+	if accTokenErr != nil {
+		pd := openapi.ProblemDetailsMalformedReqSyntax(accTokenErr.Error)
 		return &HandlerResponse{int(pd.Status), nil, pd}
 	}
 

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gin-contrib/cors"
+	//"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 
@@ -37,7 +37,6 @@ type Server struct {
 
 	httpServer *http.Server
 	router     *gin.Engine
-	processor  *processor.Processor
 }
 
 type nrf interface {
@@ -78,15 +77,15 @@ func authorizationCheck(c *gin.Context, serviceName string) error {
 func applyRoutes(group *gin.RouterGroup, routes []Route) {
 	for _, route := range routes {
 		switch route.Method {
-		case "GET":
+		case "http.MethodGet":
 			group.GET(route.Pattern, route.APIFunc)
-		case "POST":
+		case "http.MethodPost":
 			group.POST(route.Pattern, route.APIFunc)
-		case "PUT":
+		case "http.MethodPut":
 			group.PUT(route.Pattern, route.APIFunc)
-		case "PATCH":
+		case "http.MethodPatch":
 			group.PATCH(route.Pattern, route.APIFunc)
-		case "DELETE":
+		case "http.MethodDelete":
 			group.DELETE(route.Pattern, route.APIFunc)
 		}
 	}
@@ -97,17 +96,17 @@ func NewServer(nrf nrf, tlsKeyLogPath string) (*Server, error) {
 		nrf: nrf,
 	}
 
-	s.router.Use(cors.New(cors.Config{
-		AllowMethods: []string{"GET", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"},
-		AllowHeaders: []string{
-			"Origin", "Content-Length", "Content-Type", "User-Agent",
-			"Referrer", "Host", "Token", "X-Requested-With",
-		},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-		AllowAllOrigins:  true,
-		MaxAge:           CorsConfigMaxAge,
-	}))
+	// s.router.Use(cors.New(cors.Config{
+	// 	AllowMethods: []string{"GET", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"},
+	// 	AllowHeaders: []string{
+	// 		"Origin", "Content-Length", "Content-Type", "User-Agent",
+	// 		"Referrer", "Host", "Token", "X-Requested-With",
+	// 	},
+	// 	ExposeHeaders:    []string{"Content-Length"},
+	// 	AllowCredentials: true,
+	// 	AllowAllOrigins:  true,
+	// 	MaxAge:           CorsConfigMaxAge,
+	// }))
 
 	cfg := s.Config()
 	bindAddr := cfg.GetSbiBindingAddr()

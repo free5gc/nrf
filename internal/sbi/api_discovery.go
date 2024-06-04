@@ -12,12 +12,9 @@ package sbi
 import (
 	"net/http"
 
+	"github.com/free5gc/nrf/internal/sbi/processor"
 	"github.com/gin-gonic/gin"
-
-	"github.com/free5gc/nrf/internal/logger"
-	"github.com/free5gc/openapi"
-	"github.com/free5gc/openapi/models"
-	"github.com/free5gc/util/httpwrapper"
+	// "github.com/free5gc/util/httpwrapper"
 )
 
 func (s *Server) getNFDiscoveryRoutes() []Route {
@@ -45,20 +42,22 @@ func (s *Server) getSearchNFInstances(c *gin.Context) {
 		return
 	}
 
-	req := httpwrapper.NewRequest(c.Request, nil)
-	req.Query = c.Request.URL.Query()
-	httpResponse := s.processor.HandleNFDiscoveryRequest(req)
-
-	responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
-	if err != nil {
-		logger.DiscLog.Warnln(err)
-		problemDetails := models.ProblemDetails{
-			Status: http.StatusInternalServerError,
-			Cause:  "SYSTEM_FAILURE",
-			Detail: err.Error(),
-		}
-		c.JSON(http.StatusInternalServerError, problemDetails)
-	} else {
-		c.Data(httpResponse.Status, "application/json", responseBody)
-	}
+	// req := httpwrapper.NewRequest(c.Request, nil)
+	// req.Query = c.Request.URL.Query()
+	// httpResponse := s.processor.HandleNFDiscoveryRequest(req)
+	query := c.Request.URL.Query()
+	values := processor.Values(query)               // Convert query to processor.Values
+	s.Processor().HandleNFDiscoveryRequest(c, values) // Pass values instead of query
+	// responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
+	// if err != nil {
+	// 	logger.DiscLog.Warnln(err)
+	// 	problemDetails := models.ProblemDetails{
+	// 		Status: http.StatusInternalServerError,
+	// 		Cause:  "SYSTEM_FAILURE",
+	// 		Detail: err.Error(),
+	// 	}
+	// 	c.JSON(http.StatusInternalServerError, problemDetails)
+	// } else {
+	// 	c.Data(httpResponse.Status, "application/json", responseBody)
+	// }
 }

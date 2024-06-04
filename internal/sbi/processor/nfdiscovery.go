@@ -13,29 +13,29 @@ import (
 	"github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/openapi/models"
-	"github.com/free5gc/util/httpwrapper"
 	timedecode "github.com/free5gc/util/mapstruct"
 	"github.com/free5gc/util/mongoapi"
+	"github.com/gin-gonic/gin"
 )
+type Values map[string][]string
 
-func (p *Processor) HandleNFDiscoveryRequest(request *httpwrapper.Request) *httpwrapper.Response {
+func (p *Processor) HandleNFDiscoveryRequest(c *gin.Context, query Values) {
 	// Get all query parameters
 	logger.DiscLog.Infoln("Handle NFDiscoveryRequest")
 
-	response, problemDetails := NFDiscoveryProcedure(request.Query)
+	response, problemDetails := NFDiscoveryProcedure(url.Values(query))
 	// Send Response
-	// step 4: process the return value from step 3
 	if response != nil {
-		// status code is based on SPEC, and option headers
-		return httpwrapper.NewResponse(http.StatusOK, nil, response)
+		c.JSON(http.StatusOK, response)
 	} else if problemDetails != nil {
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		c.JSON(int(problemDetails.Status), problemDetails)
+	} else {
+		problemDetails = &models.ProblemDetails{
+			Status: http.StatusForbidden,
+			Cause:  "UNSPECIFIED",
+		}
+		c.JSON(http.StatusForbidden, problemDetails)
 	}
-	problemDetails = &models.ProblemDetails{
-		Status: http.StatusForbidden,
-		Cause:  "UNSPECIFIED",
-	}
-	return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 }
 
 func validateQueryParameters(queryParameters url.Values) bool {
@@ -83,9 +83,7 @@ func validateQueryParameters(queryParameters url.Values) bool {
 	return true
 }
 
-func NFDiscoveryProcedure(
-	queryParameters url.Values,
-) (response *models.SearchResult, problemDetails *models.ProblemDetails) {
+func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchResult, problemDetails *models.ProblemDetails) {
 	if !validateQueryParameters(queryParameters) {
 		problemDetails := &models.ProblemDetails{
 			Title:  "Invalid Parameter",

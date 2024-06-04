@@ -22,7 +22,7 @@ type NrfApp struct {
 	nrfCtx    *nrf_context.NRFContext
 	ctx       context.Context
 	cancel    context.CancelFunc
-	proc      *processor.Processor
+	processor      *processor.Processor
 	sbiServer *sbi.Server
 	wg        sync.WaitGroup
 }
@@ -36,7 +36,7 @@ func NewApp(ctx context.Context, cfg *factory.Config, tlsKeyLogPath string) (*Nr
 	if err != nil {
 		return nrf, err
 	}
-	nrf.proc = p
+	nrf.processor = p
 
 	nrf.nrfCtx = nrf_context.GetSelf()
 	if nrf.sbiServer, err = sbi.NewServer(nrf, tlsKeyLogPath); err != nil {
@@ -58,7 +58,7 @@ func (a *NrfApp) CancelContext() context.Context {
 }
 
 func (a *NrfApp) Processor() *processor.Processor {
-	return a.proc
+	return a.processor
 }
 
 func (a *NrfApp) SetLogEnable(enable bool) {
