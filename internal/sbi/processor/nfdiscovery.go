@@ -19,23 +19,10 @@ import (
 )
 type Values map[string][]string
 
-func (p *Processor) HandleNFDiscoveryRequest(c *gin.Context, query Values) {
+func (p *Processor) HandleNFDiscoveryRequest(c *gin.Context, query Values) { // 2 layer
 	// Get all query parameters
-	logger.DiscLog.Infoln("Handle NFDiscoveryRequest")
-
-	response, problemDetails := NFDiscoveryProcedure(url.Values(query))
-	// Send Response
-	if response != nil {
-		c.JSON(http.StatusOK, response)
-	} else if problemDetails != nil {
-		c.JSON(int(problemDetails.Status), problemDetails)
-	} else {
-		problemDetails = &models.ProblemDetails{
-			Status: http.StatusForbidden,
-			Cause:  "UNSPECIFIED",
-		}
-		c.JSON(http.StatusForbidden, problemDetails)
-	}
+	
+	
 }
 
 func validateQueryParameters(queryParameters url.Values) bool {
@@ -83,14 +70,16 @@ func validateQueryParameters(queryParameters url.Values) bool {
 	return true
 }
 
-func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchResult, problemDetails *models.ProblemDetails) {
+func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Values) {
+	logger.DiscLog.Infoln("Handle NFDiscoveryRequest")               // Convert query to processor.Values
 	if !validateQueryParameters(queryParameters) {
 		problemDetails := &models.ProblemDetails{
 			Title:  "Invalid Parameter",
 			Status: http.StatusBadRequest,
 			Cause:  "Loss mandatory parameter",
 		}
-		return nil, problemDetails
+		//return nil, problemDetails
+		c.JSON(int(problemDetails.Status), problemDetails)
 	}
 
 	if queryParameters["complexQuery"] != nil {
@@ -112,7 +101,8 @@ func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchRe
 					{Param: "complexQuery"},
 				},
 			}
-			return nil, problemDetails
+			//return nil, problemDetails
+			c.JSON(int(problemDetails.Status), problemDetails)
 		}
 	}
 
@@ -132,7 +122,8 @@ func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchRe
 			Detail: err.Error(),
 			Cause:  "SYSTEM_FAILURE",
 		}
-		return nil, problemDetails
+		//return nil, problemDetails
+		c.JSON(int(problemDetails.Status), problemDetails)
 	}
 
 	// nfProfile data for response
@@ -145,7 +136,8 @@ func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchRe
 			Detail: err.Error(),
 			Cause:  "SYSTEM_FAILURE",
 		}
-		return nil, problemDetails
+		//return nil, problemDetails
+		c.JSON(int(problemDetails.Status), problemDetails)
 	}
 
 	// handle ipv4 & ipv6
@@ -184,7 +176,8 @@ func NFDiscoveryProcedure(queryParameters url.Values) (response *models.SearchRe
 		NfInstances:    nfProfilesStruct,
 	}
 
-	return searchResult, nil
+	//return searchResult, nil
+	c.JSON(http.StatusOK, searchResult)
 }
 
 func buildFilter(queryParameters url.Values) bson.M {

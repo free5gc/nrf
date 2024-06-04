@@ -11,8 +11,9 @@ package sbi
 
 import (
 	"net/http"
+	"net/url"
 
-	"github.com/free5gc/nrf/internal/sbi/processor"
+	//"github.com/free5gc/nrf/internal/sbi/processor"
 	"github.com/gin-gonic/gin"
 	// "github.com/free5gc/util/httpwrapper"
 )
@@ -46,8 +47,27 @@ func (s *Server) getSearchNFInstances(c *gin.Context) {
 	// req.Query = c.Request.URL.Query()
 	// httpResponse := s.processor.HandleNFDiscoveryRequest(req)
 	query := c.Request.URL.Query()
-	values := processor.Values(query)               // Convert query to processor.Values
-	s.Processor().HandleNFDiscoveryRequest(c, values) // Pass values instead of query
+	// values := processor.Values(query)               // Convert query to processor.Values
+	//s.Processor().HandleNFDiscoveryRequest(c, values) // Pass values instead of query
+	s.Processor().NFDiscoveryProcedure(c, url.Values(query))
+
+	//--------------------第2層
+	//response, problemDetails := NFDiscoveryProcedure(url.Values(query))
+	// Send Response
+	// if response != nil {
+	// 	c.JSON(http.StatusOK, response)
+	// } else if problemDetails != nil {
+		
+	// } else {
+	// 	problemDetails = &models.ProblemDetails{
+	// 		Status: http.StatusForbidden,
+	// 		Cause:  "UNSPECIFIED",
+	// 	}
+	// 	c.JSON(http.StatusForbidden, problemDetails)  // 問一下為什麼這個用不到
+	// }
+
+	//-------------------
+
 	// responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	// if err != nil {
 	// 	logger.DiscLog.Warnln(err)
