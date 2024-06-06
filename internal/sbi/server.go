@@ -2,7 +2,7 @@ package sbi
 
 import (
 	"context"
-	"fmt"
+	//"fmt"
 	"log"
 	"net/http"
 	"runtime/debug"
@@ -164,9 +164,10 @@ func (s *Server) startServer(wg *sync.WaitGroup) {
 		err = s.httpServer.ListenAndServeTLS(
 			cfg.GetCertPemPath(),
 			cfg.GetCertKeyPath())
-	} else {
-		err = fmt.Errorf("No support this scheme[%s]", scheme)
 	}
+	// else {
+	// 	err = fmt.Errorf("No support this scheme[%s]", scheme)
+	// }
 
 	if err != nil && err != http.ErrServerClosed {
 		logger.SBILog.Errorf("SBI server error: %v", err)
@@ -175,43 +176,43 @@ func (s *Server) startServer(wg *sync.WaitGroup) {
 }
 
 // nolint
-func checkContentTypeIsJSON(gc *gin.Context) (string, error) {
-	var err error
-	contentType := gc.GetHeader("Content-Type")
-	if openapi.KindOfMediaType(contentType) != openapi.MediaKindJSON {
-		err = fmt.Errorf("Wrong content type %q", contentType)
-	}
+// func checkContentTypeIsJSON(gc *gin.Context) (string, error) {
+// 	var err error
+// 	contentType := gc.GetHeader("Content-Type")
+// 	if openapi.KindOfMediaType(contentType) != openapi.MediaKindJSON {
+// 		err = fmt.Errorf("Wrong content type %q", contentType)
+// 	}
 
-	if err != nil {
-		logger.SBILog.Error(err)
-		gc.JSON(http.StatusInternalServerError,
-			openapi.ProblemDetailsMalformedReqSyntax(err.Error()))
-		return "", err
-	}
+// 	if err != nil {
+// 		logger.SBILog.Error(err)
+// 		gc.JSON(http.StatusInternalServerError,
+// 			openapi.ProblemDetailsMalformedReqSyntax(err.Error()))
+// 		return "", err
+// 	}
 
-	return contentType, nil
-}
+// 	return contentType, nil
+// }
 
 // nolint
-func (s *Server) deserializeData(gc *gin.Context, data interface{}, contentType string) error {
-	reqBody, err := gc.GetRawData()
-	if err != nil {
-		logger.SBILog.Errorf("Get Request Body error: %v", err)
-		gc.JSON(http.StatusInternalServerError,
-			openapi.ProblemDetailsSystemFailure(err.Error()))
-		return err
-	}
+// func (s *Server) deserializeData(gc *gin.Context, data interface{}, contentType string) error {
+// 	reqBody, err := gc.GetRawData()
+// 	if err != nil {
+// 		logger.SBILog.Errorf("Get Request Body error: %v", err)
+// 		gc.JSON(http.StatusInternalServerError,
+// 			openapi.ProblemDetailsSystemFailure(err.Error()))
+// 		return err
+// 	}
 
-	err = openapi.Deserialize(data, reqBody, contentType)
-	if err != nil {
-		logger.SBILog.Errorf("Deserialize Request Body error: %v", err)
-		gc.JSON(http.StatusBadRequest,
-			openapi.ProblemDetailsMalformedReqSyntax(err.Error()))
-		return err
-	}
+// 	err = openapi.Deserialize(data, reqBody, contentType)
+// 	if err != nil {
+// 		logger.SBILog.Errorf("Deserialize Request Body error: %v", err)
+// 		gc.JSON(http.StatusBadRequest,
+// 			openapi.ProblemDetailsMalformedReqSyntax(err.Error()))
+// 		return err
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func (s *Server) bindData(gc *gin.Context, data interface{}) error {
 	err := gc.Bind(data)

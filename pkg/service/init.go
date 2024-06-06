@@ -22,7 +22,7 @@ type NrfApp struct {
 	nrfCtx    *nrf_context.NRFContext
 	ctx       context.Context
 	cancel    context.CancelFunc
-	processor      *processor.Processor
+	processor *processor.Processor
 	sbiServer *sbi.Server
 	wg        sync.WaitGroup
 }

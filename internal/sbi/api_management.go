@@ -15,7 +15,6 @@ import (
 	//"github.com/free5gc/nrf/internal/sbi/processor"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
-
 	timedecode "github.com/free5gc/util/mapstruct"
 	"github.com/free5gc/util/mongoapi"
 )
@@ -90,7 +89,6 @@ func (s *Server) DeregisterNFInstance(c *gin.Context) {
 	// } else {
 	// 	c.JSON(http.StatusNoContent, nil)
 	// }
-
 }
 
 // GetNFInstance - Read the profile of a given NF Instance
@@ -105,7 +103,7 @@ func (s *Server) NFInstance(c *gin.Context) {
 	logger.NfmLog.Infoln("Handle GetNFInstanceRequest")
 	nfInstanceId := c.Params.ByName("nfInstanceID")
 
-	//response := s.processor.GetNFInstanceProcedure(nfInstanceId)
+	// response := s.processor.GetNFInstanceProcedure(nfInstanceId)
 	s.Processor().GetNFInstanceProcedure(c, nfInstanceId)
 
 	// if response != nil {
@@ -181,7 +179,7 @@ func (s *Server) RegisterNFInstance(c *gin.Context) {
 	//--------------------
 
 	logger.NfmLog.Infoln("Handle NFRegisterRequest")
-	//nfProfile := request.Body.(models.NfProfile)
+	// nfProfile := request.Body.(models.NfProfile)
 
 	nfProfile := models.NfProfile{}
 	header, response, isUpdate, problemDetails := s.Processor().NFRegisterProcedure(c, nfProfile)
@@ -193,15 +191,15 @@ func (s *Server) RegisterNFInstance(c *gin.Context) {
 		if isUpdate {
 			logger.NfmLog.Traceln("update success")
 
-			//return httpwrapper.NewResponse(http.StatusOK, header, response)
+			// return httpwrapper.NewResponse(http.StatusOK, header, response)
 			c.JSON(http.StatusOK, response)
 		}
 		logger.NfmLog.Traceln("register success")
-		//return httpwrapper.NewResponse(http.StatusCreated, header, response)
+		// return httpwrapper.NewResponse(http.StatusCreated, header, response)
 		c.JSON(http.StatusCreated, response)
 	} else if problemDetails != nil {
 		logger.NfmLog.Traceln("register failed")
-		//return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		// return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 		c.JSON(int(problemDetails.Status), problemDetails)
 	}
 	problemDetails = &models.ProblemDetails{
@@ -209,9 +207,8 @@ func (s *Server) RegisterNFInstance(c *gin.Context) {
 		Cause:  "UNSPECIFIED",
 	}
 	logger.NfmLog.Traceln("register failed")
-	//return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+	// return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	c.JSON(http.StatusForbidden, problemDetails)
-
 }
 
 //-------------------
@@ -258,15 +255,14 @@ func (s *Server) getUpdateNFInstance(c *gin.Context) {
 		return
 	}
 
-	//req := httpwrapper.NewRequest(c.Request, nil)
+	// req := httpwrapper.NewRequest(c.Request, nil)
 	// req.Params["nfInstanceID"] = c.Params.ByName("nfInstanceID")
 	// req.Body = requestBody
 
-	//httpResponse := s.processor.HandleUpdateNFInstanceRequest(req)
+	// httpResponse := s.processor.HandleUpdateNFInstanceRequest(req)
 
 	nfInstanceID := c.Params.ByName("nfInstanceID")
 	s.Processor().UpdateNFInstanceProcedure(c, nfInstanceID, requestBody)
-
 }
 
 // GetNFInstances - Retrieves a collection of NF Instances
@@ -279,20 +275,20 @@ func (s *Server) getNFInstances(c *gin.Context) {
 
 	// req := httpwrapper.NewRequest(c.Request, nil)
 	// req.Query = c.Request.URL.Query()
-	//httpResponse := s.processor.HandleGetNFInstancesRequest(req) //82
+	// httpResponse := s.processor.HandleGetNFInstancesRequest(req) //82
 
 	// query := c.Request.URL.Query()
 	// values := processor.Values(query) // Convert query to processor.Values
-	
+
 	logger.NfmLog.Infoln("Handle GetNFInstancesRequest")
-	//nfType := request.Query.Get("nf-type")
+	// nfType := request.Query.Get("nf-type")
 	nfType := c.Request.URL.Query().Get("nf-type")
-	//limit_param := request.Query.Get("limit")
+	// limit_param := request.Query.Get("limit")
 	limit_param := c.Request.URL.Query().Get("limit")
 	limit := 0
 	if limit_param != "" {
 		var err error
-		//limit, err = strconv.Atoi(request.Query.Get("limit"))
+		// limit, err = strconv.Atoi(request.Query.Get("limit"))
 		limit, err = strconv.Atoi(limit_param)
 		if err != nil {
 			logger.NfmLog.Errorln("Error in string conversion: ", limit)
@@ -302,7 +298,7 @@ func (s *Server) getNFInstances(c *gin.Context) {
 				Detail: err.Error(),
 			}
 
-			//return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+			// return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 			c.JSON(int(problemDetails.Status), problemDetails)
 		}
 		if limit < 1 {
@@ -311,16 +307,16 @@ func (s *Server) getNFInstances(c *gin.Context) {
 				Status: http.StatusBadRequest,
 				Detail: "limit must be greater than 0",
 			}
-			//return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+			// return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 			c.JSON(int(problemDetails.Status), problemDetails)
 		}
 	}
 
 	s.Processor().GetNFInstancesProcedure(c, nfType, limit)
-	
+
 	//---------------------
 	// response, problemDetails := GetNFInstancesProcedure(c , nfType, limit)
-	
+
 	// if response != nil {
 	// 	logger.NfmLog.Traceln("GetNFInstances success")
 	// 	//return httpwrapper.NewResponse(http.StatusOK, nil, response)
@@ -339,7 +335,6 @@ func (s *Server) getNFInstances(c *gin.Context) {
 	// c.JSON(http.StatusForbidden, problemDetails)
 
 	//----------------------
-
 
 	// responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	// if err != nil {
@@ -369,7 +364,7 @@ func (s *Server) RemoveSubscription(c *gin.Context) {
 	subscriptionID := c.Params.ByName("subscriptionID")
 	s.Processor().HandleRemoveSubscriptionRequest(c, subscriptionID)
 
-	//httpResponse := s.processor.HandleRemoveSubscriptionRequest(req)
+	// httpResponse := s.processor.HandleRemoveSubscriptionRequest(req)
 
 	// responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	// if err != nil {
@@ -411,10 +406,10 @@ func (s *Server) UpdateSubscription(c *gin.Context) {
 	// req.Body = requestBody
 	logger.NfmLog.Infoln("Handle UpdateSubscription")
 	subscriptionID := c.Params.ByName("subscriptionID")
-	//s.processor.HandleUpdateSubscriptionRequest(c, subscriptionID, requestBody)
+	// s.processor.HandleUpdateSubscriptionRequest(c, subscriptionID, requestBody)
 	s.Processor().UpdateSubscriptionProcedure(subscriptionID, requestBody)
 
-	//httpResponse := s.processor.HandleUpdateSubscriptionRequest(req)
+	// httpResponse := s.processor.HandleUpdateSubscriptionRequest(req)
 	// responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	// if err != nil {
 	// 	logger.NfmLog.Warnln(err)
@@ -469,9 +464,9 @@ func (s *Server) CreateSubscription(c *gin.Context) {
 		return
 	}
 
-	//req := httpwrapper.NewRequest(c.Request, subscription)
+	// req := httpwrapper.NewRequest(c.Request, subscription)
 	s.Processor().HandleCreateSubscriptionRequest(c, subscription)
-	//httpResponse := s.processor.HandleCreateSubscriptionRequest(req)
+	// httpResponse := s.processor.HandleCreateSubscriptionRequest(req)
 	// responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	// if err != nil {
 	// 	logger.NfmLog.Errorln(err)

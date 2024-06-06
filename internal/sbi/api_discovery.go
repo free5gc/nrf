@@ -11,11 +11,8 @@ package sbi
 
 import (
 	"net/http"
-	"net/url"
 
-	//"github.com/free5gc/nrf/internal/sbi/processor"
 	"github.com/gin-gonic/gin"
-	// "github.com/free5gc/util/httpwrapper"
 )
 
 func (s *Server) getNFDiscoveryRoutes() []Route {
@@ -47,9 +44,7 @@ func (s *Server) getSearchNFInstances(c *gin.Context) {
 	// req.Query = c.Request.URL.Query()
 	// httpResponse := s.processor.HandleNFDiscoveryRequest(req)
 	query := c.Request.URL.Query()
-	// values := processor.Values(query)               // Convert query to processor.Values
-	//s.Processor().HandleNFDiscoveryRequest(c, values) // Pass values instead of query
-	s.Processor().NFDiscoveryProcedure(c, url.Values(query))
+	s.Processor().NFDiscoveryProcedure(c, query)
 
 	//--------------------第2層
 	//response, problemDetails := NFDiscoveryProcedure(url.Values(query))
@@ -57,7 +52,7 @@ func (s *Server) getSearchNFInstances(c *gin.Context) {
 	// if response != nil {
 	// 	c.JSON(http.StatusOK, response)
 	// } else if problemDetails != nil {
-		
+
 	// } else {
 	// 	problemDetails = &models.ProblemDetails{
 	// 		Status: http.StatusForbidden,

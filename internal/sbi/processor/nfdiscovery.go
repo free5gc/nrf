@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/free5gc/nrf/internal/context"
@@ -15,14 +16,12 @@ import (
 	"github.com/free5gc/openapi/models"
 	timedecode "github.com/free5gc/util/mapstruct"
 	"github.com/free5gc/util/mongoapi"
-	"github.com/gin-gonic/gin"
 )
+
 type Values map[string][]string
 
 func (p *Processor) HandleNFDiscoveryRequest(c *gin.Context, query Values) { // 2 layer
 	// Get all query parameters
-	
-	
 }
 
 func validateQueryParameters(queryParameters url.Values) bool {
@@ -71,14 +70,14 @@ func validateQueryParameters(queryParameters url.Values) bool {
 }
 
 func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Values) {
-	logger.DiscLog.Infoln("Handle NFDiscoveryRequest")               // Convert query to processor.Values
+	logger.DiscLog.Infoln("Handle NFDiscoveryRequest") // Convert query to processor.Values
 	if !validateQueryParameters(queryParameters) {
 		problemDetails := &models.ProblemDetails{
 			Title:  "Invalid Parameter",
 			Status: http.StatusBadRequest,
 			Cause:  "Loss mandatory parameter",
 		}
-		//return nil, problemDetails
+		// return nil, problemDetails
 		c.JSON(int(problemDetails.Status), problemDetails)
 	}
 
@@ -101,7 +100,7 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 					{Param: "complexQuery"},
 				},
 			}
-			//return nil, problemDetails
+			// return nil, problemDetails
 			c.JSON(int(problemDetails.Status), problemDetails)
 		}
 	}
@@ -122,7 +121,7 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 			Detail: err.Error(),
 			Cause:  "SYSTEM_FAILURE",
 		}
-		//return nil, problemDetails
+		// return nil, problemDetails
 		c.JSON(int(problemDetails.Status), problemDetails)
 	}
 
@@ -136,7 +135,7 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 			Detail: err.Error(),
 			Cause:  "SYSTEM_FAILURE",
 		}
-		//return nil, problemDetails
+		// return nil, problemDetails
 		c.JSON(int(problemDetails.Status), problemDetails)
 	}
 
@@ -176,7 +175,7 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 		NfInstances:    nfProfilesStruct,
 	}
 
-	//return searchResult, nil
+	// return searchResult, nil
 	c.JSON(http.StatusOK, searchResult)
 }
 

@@ -81,24 +81,23 @@ import (
 
 // func (p *Processor) HandleGetNFInstancesRequest(request *httpwrapper.Request) {
 
-	
 // }
 
 func (p *Processor) HandleRemoveSubscriptionRequest(c *gin.Context, subscriptionID string) {
 	logger.NfmLog.Infoln("Handle RemoveSubscription")
-	//subscriptionID := request.Params["subscriptionID"]
+	// subscriptionID := request.Params["subscriptionID"]
 
 	RemoveSubscriptionProcedure(subscriptionID)
 
 	c.JSON(http.StatusNoContent, nil)
-	//return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
+	// return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 }
 
-//func (p *Processor) HandleUpdateSubscriptionRequest(c *gin.Context, subscriptionID string, patchJSON []byte) {
-//logger.NfmLog.Infoln("Handle UpdateSubscription")
-//subscriptionID := request.Params["subscriptionID"]
-//patchJSON := request.Body.([]byte)
-//response := UpdateSubscriptionProcedure(subscriptionID, patchJSON)
+// func (p *Processor) HandleUpdateSubscriptionRequest(c *gin.Context, subscriptionID string, patchJSON []byte) {
+// logger.NfmLog.Infoln("Handle UpdateSubscription")
+// subscriptionID := request.Params["subscriptionID"]
+// patchJSON := request.Body.([]byte)
+// response := UpdateSubscriptionProcedure(subscriptionID, patchJSON)
 
 //------------------------------
 //httpResponse := s.processor.HandleUpdateSubscriptionRequest(req)
@@ -127,16 +126,16 @@ func (p *Processor) HandleRemoveSubscriptionRequest(c *gin.Context, subscription
 
 func (p *Processor) HandleCreateSubscriptionRequest(c *gin.Context, subscription models.NrfSubscriptionData) {
 	logger.NfmLog.Infoln("Handle CreateSubscriptionRequest")
-	//subscription := request.Body.(models.NrfSubscriptionData)
+	// subscription := request.Body.(models.NrfSubscriptionData)
 
 	response, problemDetails := CreateSubscriptionProcedure(subscription)
 	if response != nil {
 		logger.NfmLog.Traceln("CreateSubscription success")
-		//return httpwrapper.NewResponse(http.StatusCreated, nil, response)
+		// return httpwrapper.NewResponse(http.StatusCreated, nil, response)
 		c.JSON(http.StatusCreated, response)
 	} else if problemDetails != nil {
 		logger.NfmLog.Traceln("CreateSubscription failed")
-		//return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		// return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 		c.JSON(int(problemDetails.Status), problemDetails)
 	}
 	problemDetails = &models.ProblemDetails{
@@ -144,7 +143,7 @@ func (p *Processor) HandleCreateSubscriptionRequest(c *gin.Context, subscription
 		Cause:  "UNSPECIFIED",
 	}
 	logger.NfmLog.Traceln("CreateSubscription failed")
-	//return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+	// return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	c.JSON(http.StatusForbidden, problemDetails)
 }
 
@@ -216,7 +215,9 @@ func RemoveSubscriptionProcedure(subscriptionID string) {
 	}
 }
 
-func (p *Processor) GetNFInstancesProcedure(c *gin.Context, nfType string, limit int) {// (*nrf_context.UriList, *models.ProblemDetails) {
+func (p *Processor) GetNFInstancesProcedure(
+	c *gin.Context, nfType string, limit int,
+) { // (*nrf_context.UriList, *models.ProblemDetails) {
 	collName := "urilist"
 	filter := bson.M{"nfType": nfType}
 	if nfType == "" {
@@ -233,7 +234,7 @@ func (p *Processor) GetNFInstancesProcedure(c *gin.Context, nfType string, limit
 			Detail: err.Error(),
 			Cause:  "SYSTEM_FAILURE",
 		}
-		//return nil, problemDetail
+		// return nil, problemDetail
 		c.JSON(int(problemDetail.Status), problemDetail)
 	}
 	logger.NfmLog.Infoln("ULs: ", ULs)
@@ -248,7 +249,7 @@ func (p *Processor) GetNFInstancesProcedure(c *gin.Context, nfType string, limit
 				Detail: err.Error(),
 				Cause:  "SYSTEM_FAILURE",
 			}
-			//return nil, problemDetail
+			// return nil, problemDetail
 			c.JSON(int(problemDetail.Status), problemDetail)
 		}
 		rspUriList.Link.Item = append(rspUriList.Link.Item, originalUL.Link.Item...)
@@ -258,7 +259,7 @@ func (p *Processor) GetNFInstancesProcedure(c *gin.Context, nfType string, limit
 	}
 
 	nrf_context.NnrfUriListLimit(rspUriList, limit)
-	//return rspUriList, nil
+	// return rspUriList, nil
 	c.JSON(http.StatusOK, rspUriList)
 }
 
@@ -349,7 +350,9 @@ func (p *Processor) NFDeregisterProcedure(c *gin.Context, nfInstanceID string) *
 	return nil
 }
 
-func (p *Processor) UpdateNFInstanceProcedure(c *gin.Context, nfInstanceID string, patchJSON []byte) map[string]interface{} {
+func (p *Processor) UpdateNFInstanceProcedure(
+	c *gin.Context, nfInstanceID string, patchJSON []byte,
+) map[string]interface{} {
 	collName := "NfProfile"
 	filter := bson.M{"nfInstanceId": nfInstanceID}
 
@@ -406,8 +409,10 @@ func (p *Processor) GetNFInstanceProcedure(c *gin.Context, nfInstanceID string) 
 	c.JSON(http.StatusOK, response)
 }
 
-func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfile) (header http.Header, response bson.M,
-	update bool, problemDetails *models.ProblemDetails) {
+func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfile) (
+	header http.Header, response bson.M,
+	update bool, problemDetails *models.ProblemDetails,
+) {
 	logger.NfmLog.Traceln("[NRF] In NFRegisterProcedure")
 	var nf models.NfProfile
 
@@ -419,7 +424,7 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfi
 			Detail: err.Error(),
 		}
 		return nil, nil, false, problemDetails
-		//c.JSON(int(problemDetails.Status), problemDetails)
+		// c.JSON(int(problemDetails.Status), problemDetails)
 	}
 
 	// make location header
@@ -435,7 +440,7 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfi
 			Cause:  "SYSTEM_FAILURE",
 		}
 		return nil, nil, false, problemDetails
-		//c.JSON(int(problemDetails.Status), problemDetails)
+		// c.JSON(int(problemDetails.Status), problemDetails)
 	}
 	putData := bson.M{}
 	err = json.Unmarshal(tmp, &putData)
@@ -448,7 +453,7 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfi
 			Cause:  "SYSTEM_FAILURE",
 		}
 		return nil, nil, false, problemDetails
-		//c.JSON(int(problemDetails.Status), problemDetails)
+		// c.JSON(int(problemDetails.Status), problemDetails)
 	}
 	// set db info
 	collName := "NfProfile"
@@ -466,7 +471,7 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfi
 			Cause:  "SYSTEM_FAILURE",
 		}
 		return nil, nil, false, problemDetails
-		//c.JSON(int(problemDetails.Status), problemDetails)
+		// c.JSON(int(problemDetails.Status), problemDetails)
 	}
 
 	if existed {
@@ -482,13 +487,13 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfi
 			problemDetails := SendNFStatusNotify(Notification_event, nfInstanceUri, uri, &nfProfile)
 			if problemDetails != nil {
 				return nil, nil, true, problemDetails
-				//c.JSON(int(problemDetails.Status), problemDetails)
+				// c.JSON(int(problemDetails.Status), problemDetails)
 			}
 		}
 
 		header := make(http.Header)
 		header.Add("Location", locationHeaderValue)
-		//return header, putData, true, nil
+		// return header, putData, true, nil
 		c.JSON(http.StatusOK, putData)
 	} else { // Create NF Profile case
 		logger.NfmLog.Infoln("Create NF Profile")
@@ -501,7 +506,7 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfi
 			problemDetails := SendNFStatusNotify(Notification_event, nfInstanceUri, uri, &nfProfile)
 			if problemDetails != nil {
 				return nil, nil, false, problemDetails
-				//c.JSON(int(problemDetails.Status), problemDetails)
+				// c.JSON(int(problemDetails.Status), problemDetails)
 			}
 		}
 
@@ -517,7 +522,7 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfi
 			}
 		}
 		return header, putData, false, nil
-		//c.JSON(http.StatusCreated, putData)
+		// c.JSON(http.StatusCreated, putData)
 	}
 	return nil, nil, false, nil
 }
