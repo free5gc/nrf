@@ -213,7 +213,7 @@ func RemoveSubscriptionProcedure(subscriptionID string) {
 	}
 }
 
-func (p *Processor) GetNFInstancesProcedure(  //OK
+func (p *Processor) GetNFInstancesProcedure( // OK
 	c *gin.Context, nfType string, limit int,
 ) { // (*nrf_context.UriList, *models.ProblemDetails) {
 	collName := "urilist"
@@ -249,8 +249,8 @@ func (p *Processor) GetNFInstancesProcedure(  //OK
 			}
 			c.JSON(http.StatusInternalServerError, problemDetail)
 			// return nil, problemDetail
-			//c.JSON(int(problemDetail.Status), problemDetail)
-			//c.Data(http.StatusInternalServerError, "application/json", []byte("error in GetNFInstancesProcedure"))
+			// c.JSON(int(problemDetail.Status), problemDetail)
+			// c.Data(http.StatusInternalServerError, "application/json", []byte("error in GetNFInstancesProcedure"))
 		}
 		rspUriList.Link.Item = append(rspUriList.Link.Item, originalUL.Link.Item...)
 		if nfType != "" && rspUriList.NfType == "" {
@@ -266,7 +266,7 @@ func (p *Processor) GetNFInstancesProcedure(  //OK
 	c.JSON(http.StatusForbidden, nil)
 }
 
-func (p *Processor) NFDeregisterProcedure(c *gin.Context, nfInstanceID string) *models.ProblemDetails { //OK
+func (p *Processor) NFDeregisterProcedure(c *gin.Context, nfInstanceID string) *models.ProblemDetails { // OK
 	collName := "NfProfile"
 	filter := bson.M{"nfInstanceId": nfInstanceID}
 
@@ -353,7 +353,7 @@ func (p *Processor) NFDeregisterProcedure(c *gin.Context, nfInstanceID string) *
 	return nil
 }
 
-func (p *Processor) UpdateNFInstanceProcedure( //OK
+func (p *Processor) UpdateNFInstanceProcedure( // OK
 	c *gin.Context, nfInstanceID string, patchJSON []byte,
 ) map[string]interface{} {
 	collName := "NfProfile"
@@ -397,7 +397,7 @@ func (p *Processor) UpdateNFInstanceProcedure( //OK
 	return nf
 }
 
-func (p *Processor) GetNFInstanceProcedure(c *gin.Context, nfInstanceID string) { //OK
+func (p *Processor) GetNFInstanceProcedure(c *gin.Context, nfInstanceID string) { // OK
 	collName := "NfProfile"
 	filter := bson.M{"nfInstanceId": nfInstanceID}
 	response, err := mongoapi.RestfulAPIGetOne(collName, filter)
@@ -412,7 +412,7 @@ func (p *Processor) GetNFInstanceProcedure(c *gin.Context, nfInstanceID string) 
 	c.JSON(http.StatusOK, response)
 }
 
-func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfile) ( //OK
+func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfile) ( // OK
 	header http.Header, response bson.M,
 	update bool, problemDetails *models.ProblemDetails,
 ) {

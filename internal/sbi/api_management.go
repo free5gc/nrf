@@ -71,7 +71,7 @@ func (s *Server) getNFManagementRoutes() []Route {
 }
 
 // DeregisterNFInstance - Deregisters a given NF Instance
-func (s *Server) DeregisterNFInstance(c *gin.Context) {  //OK
+func (s *Server) DeregisterNFInstance(c *gin.Context) { // OK
 	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
@@ -91,7 +91,7 @@ func (s *Server) DeregisterNFInstance(c *gin.Context) {  //OK
 }
 
 // GetNFInstance - Read the profile of a given NF Instance
-func (s *Server) NFInstance(c *gin.Context) {    //OK
+func (s *Server) NFInstance(c *gin.Context) { // OK
 	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
@@ -104,7 +104,7 @@ func (s *Server) NFInstance(c *gin.Context) {    //OK
 	s.Processor().GetNFInstanceProcedure(c, nfInstanceId)
 }
 
-func (s *Server) RegisterNFInstance(c *gin.Context) {  //OK
+func (s *Server) RegisterNFInstance(c *gin.Context) { // OK
 	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
@@ -170,7 +170,7 @@ func (s *Server) RegisterNFInstance(c *gin.Context) {  //OK
 }
 
 // UpdateNFInstance - Update NF Instance profile
-func (s *Server) getUpdateNFInstance(c *gin.Context) {  //OK
+func (s *Server) getUpdateNFInstance(c *gin.Context) { // OK
 	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
@@ -322,7 +322,7 @@ func (s *Server) UpdateSubscription(c *gin.Context) {
 // Provide SubsciptionId for each request (add by one each time)
 
 // CreateSubscription - Create a new subscription
-func (s *Server) CreateSubscription(c *gin.Context) {  //OK
+func (s *Server) CreateSubscription(c *gin.Context) { // OK
 	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
