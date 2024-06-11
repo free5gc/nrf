@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	//"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,7 +18,6 @@ import (
 	"github.com/free5gc/openapi/Nnrf_NFManagement"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/openapi/oauth"
-	//"github.com/free5gc/util/httpwrapper"
 	timedecode "github.com/free5gc/util/mapstruct"
 	"github.com/free5gc/util/mongoapi"
 )
@@ -215,7 +213,7 @@ func RemoveSubscriptionProcedure(subscriptionID string) {
 	}
 }
 
-func (p *Processor) GetNFInstancesProcedure(
+func (p *Processor) GetNFInstancesProcedure(  //OK
 	c *gin.Context, nfType string, limit int,
 ) { // (*nrf_context.UriList, *models.ProblemDetails) {
 	collName := "urilist"
@@ -249,8 +247,10 @@ func (p *Processor) GetNFInstancesProcedure(
 				Detail: err.Error(),
 				Cause:  "SYSTEM_FAILURE",
 			}
+			c.JSON(http.StatusInternalServerError, problemDetail)
 			// return nil, problemDetail
-			c.JSON(int(problemDetail.Status), problemDetail)
+			//c.JSON(int(problemDetail.Status), problemDetail)
+			//c.Data(http.StatusInternalServerError, "application/json", []byte("error in GetNFInstancesProcedure"))
 		}
 		rspUriList.Link.Item = append(rspUriList.Link.Item, originalUL.Link.Item...)
 		if nfType != "" && rspUriList.NfType == "" {
@@ -261,9 +261,12 @@ func (p *Processor) GetNFInstancesProcedure(
 	nrf_context.NnrfUriListLimit(rspUriList, limit)
 	// return rspUriList, nil
 	c.JSON(http.StatusOK, rspUriList)
+
+	logger.NfmLog.Traceln("GetNFInstances failed")
+	c.JSON(http.StatusForbidden, nil)
 }
 
-func (p *Processor) NFDeregisterProcedure(c *gin.Context, nfInstanceID string) *models.ProblemDetails {
+func (p *Processor) NFDeregisterProcedure(c *gin.Context, nfInstanceID string) *models.ProblemDetails { //OK
 	collName := "NfProfile"
 	filter := bson.M{"nfInstanceId": nfInstanceID}
 
@@ -314,7 +317,7 @@ func (p *Processor) NFDeregisterProcedure(c *gin.Context, nfInstanceID string) *
 		return problemDetails
 	}
 
-	uriList := nrf_context.GetNofificationUri(nfProfiles[0])
+	uriList := nrf_context.GetNotificationUri(nfProfiles[0])
 	nfInstanceType := nfProfiles[0].NfType
 	nfInstanceUri := nrf_context.GetNfInstanceURI(nfInstanceID)
 	// set info for NotificationData
@@ -350,7 +353,7 @@ func (p *Processor) NFDeregisterProcedure(c *gin.Context, nfInstanceID string) *
 	return nil
 }
 
-func (p *Processor) UpdateNFInstanceProcedure(
+func (p *Processor) UpdateNFInstanceProcedure( //OK
 	c *gin.Context, nfInstanceID string, patchJSON []byte,
 ) map[string]interface{} {
 	collName := "NfProfile"
@@ -381,7 +384,7 @@ func (p *Processor) UpdateNFInstanceProcedure(
 		return nil
 	}
 
-	uriList := nrf_context.GetNofificationUri(nfProfiles[0])
+	uriList := nrf_context.GetNotificationUri(nfProfiles[0])
 
 	// set info for NotificationData
 	Notification_event := models.NotificationEventType_PROFILE_CHANGED
@@ -394,7 +397,7 @@ func (p *Processor) UpdateNFInstanceProcedure(
 	return nf
 }
 
-func (p *Processor) GetNFInstanceProcedure(c *gin.Context, nfInstanceID string) {
+func (p *Processor) GetNFInstanceProcedure(c *gin.Context, nfInstanceID string) { //OK
 	collName := "NfProfile"
 	filter := bson.M{"nfInstanceId": nfInstanceID}
 	response, err := mongoapi.RestfulAPIGetOne(collName, filter)
@@ -409,7 +412,7 @@ func (p *Processor) GetNFInstanceProcedure(c *gin.Context, nfInstanceID string) 
 	c.JSON(http.StatusOK, response)
 }
 
-func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfile) (
+func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfile) ( //OK
 	header http.Header, response bson.M,
 	update bool, problemDetails *models.ProblemDetails,
 ) {
@@ -423,8 +426,8 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfi
 			Status: http.StatusBadRequest,
 			Detail: err.Error(),
 		}
+		c.JSON(int(problemDetails.Status), problemDetails)
 		return nil, nil, false, problemDetails
-		// c.JSON(int(problemDetails.Status), problemDetails)
 	}
 
 	// make location header
@@ -439,8 +442,8 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfi
 			Detail: err.Error(),
 			Cause:  "SYSTEM_FAILURE",
 		}
+		c.JSON(int(problemDetails.Status), problemDetails)
 		return nil, nil, false, problemDetails
-		// c.JSON(int(problemDetails.Status), problemDetails)
 	}
 	putData := bson.M{}
 	err = json.Unmarshal(tmp, &putData)
@@ -452,8 +455,8 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfi
 			Detail: err.Error(),
 			Cause:  "SYSTEM_FAILURE",
 		}
+		c.JSON(int(problemDetails.Status), problemDetails)
 		return nil, nil, false, problemDetails
-		// c.JSON(int(problemDetails.Status), problemDetails)
 	}
 	// set db info
 	collName := "NfProfile"
@@ -470,13 +473,13 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfi
 			Detail: err.Error(),
 			Cause:  "SYSTEM_FAILURE",
 		}
+		c.JSON(int(problemDetails.Status), problemDetails)
 		return nil, nil, false, problemDetails
-		// c.JSON(int(problemDetails.Status), problemDetails)
 	}
 
 	if existed {
 		logger.NfmLog.Infoln("RestfulAPIPutOne Update")
-		uriList := nrf_context.GetNofificationUri(nf)
+		uriList := nrf_context.GetNotificationUri(nf)
 
 		// set info for NotificationData
 		Notification_event := models.NotificationEventType_PROFILE_CHANGED
@@ -486,18 +489,18 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfi
 		for _, uri := range uriList {
 			problemDetails := SendNFStatusNotify(Notification_event, nfInstanceUri, uri, &nfProfile)
 			if problemDetails != nil {
+				c.JSON(int(problemDetails.Status), problemDetails)
 				return nil, nil, true, problemDetails
-				// c.JSON(int(problemDetails.Status), problemDetails)
 			}
 		}
 
 		header := make(http.Header)
 		header.Add("Location", locationHeaderValue)
-		// return header, putData, true, nil
 		c.JSON(http.StatusOK, putData)
+		return header, putData, true, nil
 	} else { // Create NF Profile case
 		logger.NfmLog.Infoln("Create NF Profile")
-		uriList := nrf_context.GetNofificationUri(nf)
+		uriList := nrf_context.GetNotificationUri(nf)
 		// set info for NotificationData
 		Notification_event := models.NotificationEventType_REGISTERED
 		nfInstanceUri := locationHeaderValue
@@ -505,8 +508,8 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfi
 		for _, uri := range uriList {
 			problemDetails := SendNFStatusNotify(Notification_event, nfInstanceUri, uri, &nfProfile)
 			if problemDetails != nil {
+				c.JSON(int(problemDetails.Status), problemDetails)
 				return nil, nil, false, problemDetails
-				// c.JSON(int(problemDetails.Status), problemDetails)
 			}
 		}
 
@@ -521,10 +524,9 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile models.NfProfi
 				logger.NfmLog.Warnln(err)
 			}
 		}
+		c.JSON(http.StatusCreated, putData)
 		return header, putData, false, nil
-		// c.JSON(http.StatusCreated, putData)
 	}
-	return nil, nil, false, nil
 }
 
 func copyNotificationNfProfile(notifProfile *models.NfProfileNotificationData, nfProfile *models.NfProfile) {

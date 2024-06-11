@@ -498,7 +498,7 @@ func nnrfUriList(originalUL *UriList, UL *UriList, location []string) {
 	UL.Link = *b
 }
 
-func GetNofificationUri(nfProfile models.NfProfile) []string {
+func GetNotificationUri(nfProfile models.NfProfile) []string {
 	var uriList []string
 
 	// nfTypeCond

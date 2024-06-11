@@ -23,7 +23,7 @@ import (
 
 // Index is the index handler.
 func Index(c *gin.Context) {
-	c.String(http.StatusOK, "Hello World!")
+	c.String(http.StatusOK, "msg")
 }
 
 func (s *Server) getAccessTokenRoutes() []Route {
@@ -32,7 +32,7 @@ func (s *Server) getAccessTokenRoutes() []Route {
 			Method:  http.MethodGet,
 			Pattern: "/",
 			APIFunc: func(ctx *gin.Context) {
-				ctx.JSON(http.StatusOK, gin.H{"status": "Hello World!"})
+				ctx.JSON(http.StatusOK, gin.H{"status": "msg"})
 			},
 		},
 		{

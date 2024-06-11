@@ -12,7 +12,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/free5gc/nrf/internal/logger"
-	//"github.com/free5gc/nrf/internal/sbi/processor"
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
 	timedecode "github.com/free5gc/util/mapstruct"
@@ -72,7 +71,7 @@ func (s *Server) getNFManagementRoutes() []Route {
 }
 
 // DeregisterNFInstance - Deregisters a given NF Instance
-func (s *Server) DeregisterNFInstance(c *gin.Context) {
+func (s *Server) DeregisterNFInstance(c *gin.Context) {  //OK
 	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
@@ -87,60 +86,25 @@ func (s *Server) DeregisterNFInstance(c *gin.Context) {
 	// if problemDetails != nil {
 	// 	c.JSON(http.StatusInternalServerError, problemDetails)
 	// } else {
-	// 	c.JSON(http.StatusNoContent, nil)
+	// 	c.JSON(http.StatusNoContent, nil)  //這個沒用到，確認一下
 	// }
 }
 
 // GetNFInstance - Read the profile of a given NF Instance
-func (s *Server) NFInstance(c *gin.Context) {
+func (s *Server) NFInstance(c *gin.Context) {    //OK
 	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
 		return
 	}
 
-	//---------------------
 	logger.NfmLog.Infoln("Handle GetNFInstanceRequest")
 	nfInstanceId := c.Params.ByName("nfInstanceID")
 
-	// response := s.processor.GetNFInstanceProcedure(nfInstanceId)
 	s.Processor().GetNFInstanceProcedure(c, nfInstanceId)
-
-	// if response != nil {
-	// 	//return httpwrapper.NewResponse(http.StatusOK, nil, response)
-	// 	c.JSON(http.StatusOK, response)
-	// } else {
-	// 	problemDetails := &models.ProblemDetails{
-	// 		Status: http.StatusNotFound,
-	// 		Cause:  "UNSPECIFIED",
-	// 	}
-	// 	//return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
-	// 	c.JSON(int(problemDetails.Status), problemDetails)
 }
 
-//--------------------
-
-// req := httpwrapper.NewRequest(c.Request, nil)
-// req.Params["nfInstanceID"] = c.Params.ByName("nfInstanceID")
-// //nfInstanceID := c.Params.ByName("nfInstanceID")
-// httpResponse := s.processor.HandleGetNFInstanceRequest(req)
-// //s.processor.HandleGetNFInstanceRequest(c, nfInstanceID)
-
-// responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
-// if err != nil {
-// 	logger.NfmLog.Warnln(err)
-// 	problemDetails := models.ProblemDetails{
-// 		Status: http.StatusInternalServerError,
-// 		Cause:  "SYSTEM_FAILURE",
-// 		Detail: err.Error(),
-// 	}
-// 	c.JSON(http.StatusInternalServerError, problemDetails)
-// } else {
-// 	c.Data(httpResponse.Status, "application/json", responseBody)
-// }
-
-// RegisterNFInstance - Register a new NF Instance
-func (s *Server) RegisterNFInstance(c *gin.Context) {
+func (s *Server) RegisterNFInstance(c *gin.Context) {  //OK
 	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
@@ -176,10 +140,8 @@ func (s *Server) RegisterNFInstance(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
-	//--------------------
 
 	logger.NfmLog.Infoln("Handle NFRegisterRequest")
-	// nfProfile := request.Body.(models.NfProfile)
 
 	nfProfile := models.NfProfile{}
 	header, response, isUpdate, problemDetails := s.Processor().NFRegisterProcedure(c, nfProfile)
@@ -191,15 +153,12 @@ func (s *Server) RegisterNFInstance(c *gin.Context) {
 		if isUpdate {
 			logger.NfmLog.Traceln("update success")
 
-			// return httpwrapper.NewResponse(http.StatusOK, header, response)
 			c.JSON(http.StatusOK, response)
 		}
 		logger.NfmLog.Traceln("register success")
-		// return httpwrapper.NewResponse(http.StatusCreated, header, response)
 		c.JSON(http.StatusCreated, response)
 	} else if problemDetails != nil {
 		logger.NfmLog.Traceln("register failed")
-		// return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 		c.JSON(int(problemDetails.Status), problemDetails)
 	}
 	problemDetails = &models.ProblemDetails{
@@ -207,34 +166,11 @@ func (s *Server) RegisterNFInstance(c *gin.Context) {
 		Cause:  "UNSPECIFIED",
 	}
 	logger.NfmLog.Traceln("register failed")
-	// return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	c.JSON(http.StatusForbidden, problemDetails)
 }
 
-//-------------------
-// step 3: encapsulate the request by http_wrapper package
-//req := httpwrapper.NewRequest(c.Request, nfprofile)
-//s.processor.HandleNFRegisterRequest(c, nfprofile)
-
-// for key, val := range httpResponse.Header {
-// 	c.Header(key, val[0])
-// }
-
-// responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
-// if err != nil {
-// 	logger.NfmLog.Warnln(err)
-// 	problemDetails := models.ProblemDetails{
-// 		Status: http.StatusInternalServerError,
-// 		Cause:  "SYSTEM_FAILURE",
-// 		Detail: err.Error(),
-// 	}
-// 	c.JSON(http.StatusInternalServerError, problemDetails)
-// } else {
-// 	c.Data(httpResponse.Status, "application/json", responseBody)
-// }
-
 // UpdateNFInstance - Update NF Instance profile
-func (s *Server) getUpdateNFInstance(c *gin.Context) {
+func (s *Server) getUpdateNFInstance(c *gin.Context) {  //OK
 	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
@@ -255,12 +191,6 @@ func (s *Server) getUpdateNFInstance(c *gin.Context) {
 		return
 	}
 
-	// req := httpwrapper.NewRequest(c.Request, nil)
-	// req.Params["nfInstanceID"] = c.Params.ByName("nfInstanceID")
-	// req.Body = requestBody
-
-	// httpResponse := s.processor.HandleUpdateNFInstanceRequest(req)
-
 	nfInstanceID := c.Params.ByName("nfInstanceID")
 	s.Processor().UpdateNFInstanceProcedure(c, nfInstanceID, requestBody)
 }
@@ -273,22 +203,12 @@ func (s *Server) getNFInstances(c *gin.Context) {
 		return
 	}
 
-	// req := httpwrapper.NewRequest(c.Request, nil)
-	// req.Query = c.Request.URL.Query()
-	// httpResponse := s.processor.HandleGetNFInstancesRequest(req) //82
-
-	// query := c.Request.URL.Query()
-	// values := processor.Values(query) // Convert query to processor.Values
-
 	logger.NfmLog.Infoln("Handle GetNFInstancesRequest")
-	// nfType := request.Query.Get("nf-type")
 	nfType := c.Request.URL.Query().Get("nf-type")
-	// limit_param := request.Query.Get("limit")
 	limit_param := c.Request.URL.Query().Get("limit")
 	limit := 0
 	if limit_param != "" {
 		var err error
-		// limit, err = strconv.Atoi(request.Query.Get("limit"))
 		limit, err = strconv.Atoi(limit_param)
 		if err != nil {
 			logger.NfmLog.Errorln("Error in string conversion: ", limit)
@@ -297,8 +217,6 @@ func (s *Server) getNFInstances(c *gin.Context) {
 				Status: http.StatusBadRequest,
 				Detail: err.Error(),
 			}
-
-			// return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 			c.JSON(int(problemDetails.Status), problemDetails)
 		}
 		if limit < 1 {
@@ -307,34 +225,11 @@ func (s *Server) getNFInstances(c *gin.Context) {
 				Status: http.StatusBadRequest,
 				Detail: "limit must be greater than 0",
 			}
-			// return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 			c.JSON(int(problemDetails.Status), problemDetails)
 		}
 	}
 
 	s.Processor().GetNFInstancesProcedure(c, nfType, limit)
-
-	//---------------------
-	// response, problemDetails := GetNFInstancesProcedure(c , nfType, limit)
-
-	// if response != nil {
-	// 	logger.NfmLog.Traceln("GetNFInstances success")
-	// 	//return httpwrapper.NewResponse(http.StatusOK, nil, response)
-	// 	c.JSON(http.StatusOK, response)
-	// } else if problemDetails != nil {
-	// 	logger.NfmLog.Traceln("GetNFInstances failed")
-	// 	//return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
-	// 	c.JSON(int(problemDetails.Status), problemDetails)
-	// }
-	// problemDetails = &models.ProblemDetails{
-	// 	Status: http.StatusForbidden,
-	// 	Cause:  "UNSPECIFIED",
-	// }
-	// logger.NfmLog.Traceln("GetNFInstances failed")
-	// //return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
-	// c.JSON(http.StatusForbidden, problemDetails)
-
-	//----------------------
 
 	// responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
 	// if err != nil {
@@ -427,7 +322,7 @@ func (s *Server) UpdateSubscription(c *gin.Context) {
 // Provide SubsciptionId for each request (add by one each time)
 
 // CreateSubscription - Create a new subscription
-func (s *Server) CreateSubscription(c *gin.Context) {
+func (s *Server) CreateSubscription(c *gin.Context) {  //OK
 	auth_err := authorizationCheck(c, "nnrf-nfm")
 	if auth_err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
@@ -464,21 +359,7 @@ func (s *Server) CreateSubscription(c *gin.Context) {
 		return
 	}
 
-	// req := httpwrapper.NewRequest(c.Request, subscription)
 	s.Processor().HandleCreateSubscriptionRequest(c, subscription)
-	// httpResponse := s.processor.HandleCreateSubscriptionRequest(req)
-	// responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
-	// if err != nil {
-	// 	logger.NfmLog.Errorln(err)
-	// 	problemDetails := models.ProblemDetails{
-	// 		Status: http.StatusInternalServerError,
-	// 		Cause:  "SYSTEM_FAILURE",
-	// 		Detail: err.Error(),
-	// 	}
-	// 	c.JSON(http.StatusInternalServerError, problemDetails)
-	// } else {
-	// 	c.Data(httpResponse.Status, "application/json", responseBody)
-	// }
 }
 
 func (s *Server) GetLocalIp() string {
