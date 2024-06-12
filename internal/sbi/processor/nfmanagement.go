@@ -22,65 +22,6 @@ import (
 	"github.com/free5gc/util/mongoapi"
 )
 
-// func (p *Processor) HandleNFDeregisterRequest(request *httpwrapper.Request) *httpwrapper.Response {
-
-// 	logger.NfmLog.Infoln("Handle NFDeregisterRequest")
-// 	nfInstanceId := request.Params["nfInstanceID"]
-
-// 	problemDetails := NFDeregisterProcedure(nfInstanceId)
-
-// 	if problemDetails != nil {
-// 		logger.NfmLog.Infoln("[NRF] Dergeister Success")
-// 		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
-// 	} else {
-// 		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
-// 	}
-// }
-
-// func (p *Processor) HandleGetNFInstanceRequest(c *gin.Context, nfInstanceId string) {
-// 	logger.NfmLog.Infoln("Handle GetNFInstanceRequest")
-// 	//nfInstanceId := request.Params["nfInstanceID"]
-
-// 	response := GetNFInstanceProcedure(nfInstanceId)
-
-// 	if response != nil {
-// 		//return httpwrapper.NewResponse(http.StatusOK, nil, response)
-// 		c.JSON(http.StatusOK, response)
-// 	} else {
-// 		problemDetails := &models.ProblemDetails{
-// 			Status: http.StatusNotFound,
-// 			Cause:  "UNSPECIFIED",
-// 		}
-// 		//return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
-// 		c.JSON(int(problemDetails.Status), problemDetails)
-// 	}
-// }
-
-// func (p *Processor) HandleNFRegisterRequest(c *gin.Context, nfprofile models.NfProfile) {
-// logger.NfmLog.Infoln("Handle NFRegisterRequest")
-// nfProfile := request.Body.(models.NfProfile)
-
-// header, response, isUpdate, problemDetails := NFRegisterProcedure(NfProfile)
-
-// }
-
-// func (p *Processor) HandleUpdateNFInstanceRequest(c *gin.Context) {
-// 	logger.NfmLog.Infoln("Handle UpdateNFInstanceRequest")
-// 	nfInstanceID := request.Params["nfInstanceID"]
-// 	patchJSON := request.Body.([]byte)
-
-// 	response := UpdateNFInstanceProcedure(nfInstanceID, patchJSON)
-// 	if response != nil {
-// 		return httpwrapper.NewResponse(http.StatusOK, nil, response)
-// 	} else {
-// 		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
-// 	}
-// }
-
-// func (p *Processor) HandleGetNFInstancesRequest(request *httpwrapper.Request) {
-
-// }
-
 func (p *Processor) HandleRemoveSubscriptionRequest(c *gin.Context, subscriptionID string) {
 	logger.NfmLog.Infoln("Handle RemoveSubscription")
 	// subscriptionID := request.Params["subscriptionID"]
@@ -90,37 +31,6 @@ func (p *Processor) HandleRemoveSubscriptionRequest(c *gin.Context, subscription
 	c.JSON(http.StatusNoContent, nil)
 	// return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 }
-
-// func (p *Processor) HandleUpdateSubscriptionRequest(c *gin.Context, subscriptionID string, patchJSON []byte) {
-// logger.NfmLog.Infoln("Handle UpdateSubscription")
-// subscriptionID := request.Params["subscriptionID"]
-// patchJSON := request.Body.([]byte)
-// response := UpdateSubscriptionProcedure(subscriptionID, patchJSON)
-
-//------------------------------
-//httpResponse := s.processor.HandleUpdateSubscriptionRequest(req)
-// responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
-// if err != nil {
-// 	logger.NfmLog.Warnln(err)
-// 	problemDetails := models.ProblemDetails{
-// 		Status: http.StatusInternalServerError,
-// 		Cause:  "SYSTEM_FAILURE",
-// 		Detail: err.Error(),
-// 	}
-// 	c.JSON(http.StatusInternalServerError, problemDetails)
-// } else {
-// 	c.Data(httpResponse.Status, "application/json", responseBody)
-// }
-//--------------------------------
-
-// 	if response != nil {
-// 		//return httpwrapper.NewResponse(http.StatusOK, nil, response)
-// 		c.JSON(http.StatusOK, response)
-// 	} else {
-// 		//return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
-// 		c.JSON(http.StatusNoContent, nil)
-// 	}
-// }
 
 func (p *Processor) HandleCreateSubscriptionRequest(c *gin.Context, subscription models.NrfSubscriptionData) {
 	logger.NfmLog.Infoln("Handle CreateSubscriptionRequest")
@@ -190,17 +100,26 @@ func CreateSubscriptionProcedure(subscription models.NrfSubscriptionData) (bson.
 	return putData, nil
 }
 
-func (p *Processor) UpdateSubscriptionProcedure(subscriptionID string, patchJSON []byte) map[string]interface{} {
+func (p *Processor) UpdateSubscriptionProcedure(c *gin.Context, subscriptionID string, patchJSON []byte) {
+	// map[string]interface{} {  //OK
 	collName := "Subscriptions"
 	filter := bson.M{"subscriptionId": subscriptionID}
 
 	if err := mongoapi.RestfulAPIJSONPatch(collName, filter, patchJSON); err != nil {
-		return nil
+		logger.NfmLog.Warnln(err)
+		problemDetails := models.ProblemDetails{
+			Status: http.StatusInternalServerError,
+			Cause:  "SYSTEM_FAILURE",
+			Detail: err.Error(),
+		}
+		c.JSON(http.StatusInternalServerError, problemDetails)
+		// return nil
 	} else {
 		if response, err := mongoapi.RestfulAPIGetOne(collName, filter); err == nil {
-			return response
+			c.JSON(http.StatusOK, response)
+			// return response
 		}
-		return nil
+		// return nil
 	}
 }
 

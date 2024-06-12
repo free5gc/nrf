@@ -82,12 +82,6 @@ func (s *Server) DeregisterNFInstance(c *gin.Context) { // OK
 	nfInstanceId := c.Params.ByName("nfInstanceID")
 
 	s.Processor().NFDeregisterProcedure(c, nfInstanceId)
-
-	// if problemDetails != nil {
-	// 	c.JSON(http.StatusInternalServerError, problemDetails)
-	// } else {
-	// 	c.JSON(http.StatusNoContent, nil)  //這個沒用到，確認一下
-	// }
 }
 
 // GetNFInstance - Read the profile of a given NF Instance
@@ -230,19 +224,6 @@ func (s *Server) getNFInstances(c *gin.Context) {
 	}
 
 	s.Processor().GetNFInstancesProcedure(c, nfType, limit)
-
-	// responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
-	// if err != nil {
-	// 	logger.NfmLog.Warnln(err)
-	// 	problemDetails := models.ProblemDetails{
-	// 		Status: http.StatusInternalServerError,
-	// 		Cause:  "SYSTEM_FAILURE",
-	// 		Detail: err.Error(),
-	// 	}
-	// 	c.JSON(http.StatusInternalServerError, problemDetails)
-	// } else {
-	// 	c.Data(httpResponse.Status, "application/json", responseBody)
-	// }
 }
 
 // RemoveSubscription - Deletes a subscription
@@ -253,26 +234,8 @@ func (s *Server) RemoveSubscription(c *gin.Context) {
 		return
 	}
 
-	// req := httpwrapper.NewRequest(c.Request, nil)
-	// req.Params["subscriptionID"] = c.Params.ByName("subscriptionID")
-
 	subscriptionID := c.Params.ByName("subscriptionID")
 	s.Processor().HandleRemoveSubscriptionRequest(c, subscriptionID)
-
-	// httpResponse := s.processor.HandleRemoveSubscriptionRequest(req)
-
-	// responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
-	// if err != nil {
-	// 	logger.NfmLog.Warnln(err)
-	// 	problemDetails := models.ProblemDetails{
-	// 		Status: http.StatusInternalServerError,
-	// 		Cause:  "SYSTEM_FAILURE",
-	// 		Detail: err.Error(),
-	// 	}
-	// 	c.JSON(http.StatusInternalServerError, problemDetails)
-	// } else {
-	// 	c.Data(httpResponse.Status, "application/json", responseBody)
-	// }
 }
 
 // UpdateSubscription - Updates a subscription
@@ -296,27 +259,10 @@ func (s *Server) UpdateSubscription(c *gin.Context) {
 		return
 	}
 
-	// req := httpwrapper.NewRequest(c.Request, nil)
-	// req.Params["subscriptionID"] = c.Params.ByName("subscriptionID")
-	// req.Body = requestBody
 	logger.NfmLog.Infoln("Handle UpdateSubscription")
 	subscriptionID := c.Params.ByName("subscriptionID")
-	// s.processor.HandleUpdateSubscriptionRequest(c, subscriptionID, requestBody)
-	s.Processor().UpdateSubscriptionProcedure(subscriptionID, requestBody)
 
-	// httpResponse := s.processor.HandleUpdateSubscriptionRequest(req)
-	// responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
-	// if err != nil {
-	// 	logger.NfmLog.Warnln(err)
-	// 	problemDetails := models.ProblemDetails{
-	// 		Status: http.StatusInternalServerError,
-	// 		Cause:  "SYSTEM_FAILURE",
-	// 		Detail: err.Error(),
-	// 	}
-	// 	c.JSON(http.StatusInternalServerError, problemDetails)
-	// } else {
-	// 	c.Data(httpResponse.Status, "application/json", responseBody)
-	// }
+	s.Processor().UpdateSubscriptionProcedure(c, subscriptionID, requestBody)
 }
 
 // Provide SubsciptionId for each request (add by one each time)

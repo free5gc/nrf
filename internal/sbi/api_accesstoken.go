@@ -98,7 +98,7 @@ func (s *Server) apiAccessTokenRequest(c *gin.Context) {
 		}
 	}
 
-	if err1 := s.bindData(c, &accessTokenReq); err1 != nil {
+	if s.bindData(c, &accessTokenReq) != nil {
 		return
 	}
 	if err != nil {
