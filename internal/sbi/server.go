@@ -2,14 +2,12 @@ package sbi
 
 import (
 	"context"
-	//"fmt"
 	"log"
 	"net/http"
 	"runtime/debug"
 	"sync"
 	"time"
 
-	//"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 
@@ -96,18 +94,6 @@ func NewServer(nrf nrf, tlsKeyLogPath string) (*Server, error) {
 		nrf: nrf,
 	}
 
-	// s.router.Use(cors.New(cors.Config{
-	// 	AllowMethods: []string{"GET", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"},
-	// 	AllowHeaders: []string{
-	// 		"Origin", "Content-Length", "Content-Type", "User-Agent",
-	// 		"Referrer", "Host", "Token", "X-Requested-With",
-	// 	},
-	// 	ExposeHeaders:    []string{"Content-Length"},
-	// 	AllowCredentials: true,
-	// 	AllowAllOrigins:  true,
-	// 	MaxAge:           CorsConfigMaxAge,
-	// }))
-
 	cfg := s.Config()
 	bindAddr := cfg.GetSbiBindingAddr()
 	logger.SBILog.Infof("Binding addr: [%s]", bindAddr)
@@ -174,45 +160,6 @@ func (s *Server) startServer(wg *sync.WaitGroup) {
 	}
 	logger.SBILog.Warnf("SBI server (listen on %s) stopped", s.httpServer.Addr)
 }
-
-// nolint
-// func checkContentTypeIsJSON(gc *gin.Context) (string, error) {
-// 	var err error
-// 	contentType := gc.GetHeader("Content-Type")
-// 	if openapi.KindOfMediaType(contentType) != openapi.MediaKindJSON {
-// 		err = fmt.Errorf("Wrong content type %q", contentType)
-// 	}
-
-// 	if err != nil {
-// 		logger.SBILog.Error(err)
-// 		gc.JSON(http.StatusInternalServerError,
-// 			openapi.ProblemDetailsMalformedReqSyntax(err.Error()))
-// 		return "", err
-// 	}
-
-// 	return contentType, nil
-// }
-
-// nolint
-// func (s *Server) deserializeData(gc *gin.Context, data interface{}, contentType string) error {
-// 	reqBody, err := gc.GetRawData()
-// 	if err != nil {
-// 		logger.SBILog.Errorf("Get Request Body error: %v", err)
-// 		gc.JSON(http.StatusInternalServerError,
-// 			openapi.ProblemDetailsSystemFailure(err.Error()))
-// 		return err
-// 	}
-
-// 	err = openapi.Deserialize(data, reqBody, contentType)
-// 	if err != nil {
-// 		logger.SBILog.Errorf("Deserialize Request Body error: %v", err)
-// 		gc.JSON(http.StatusBadRequest,
-// 			openapi.ProblemDetailsMalformedReqSyntax(err.Error()))
-// 		return err
-// 	}
-
-// 	return nil
-// }
 
 func (s *Server) bindData(gc *gin.Context, data interface{}) error {
 	err := gc.Bind(data)

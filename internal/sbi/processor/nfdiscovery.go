@@ -77,7 +77,6 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 			Status: http.StatusBadRequest,
 			Cause:  "Loss mandatory parameter",
 		}
-		// return nil, problemDetails
 		c.JSON(int(problemDetails.Status), problemDetails)
 	}
 
@@ -100,7 +99,6 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 					{Param: "complexQuery"},
 				},
 			}
-			// return nil, problemDetails
 			c.JSON(int(problemDetails.Status), problemDetails)
 		}
 	}
@@ -121,7 +119,6 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 			Detail: err.Error(),
 			Cause:  "SYSTEM_FAILURE",
 		}
-		// return nil, problemDetails
 		c.JSON(int(problemDetails.Status), problemDetails)
 	}
 
@@ -135,7 +132,6 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 			Detail: err.Error(),
 			Cause:  "SYSTEM_FAILURE",
 		}
-		// return nil, problemDetails
 		c.JSON(int(problemDetails.Status), problemDetails)
 	}
 

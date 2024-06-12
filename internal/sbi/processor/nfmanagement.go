@@ -24,26 +24,21 @@ import (
 
 func (p *Processor) HandleRemoveSubscriptionRequest(c *gin.Context, subscriptionID string) {
 	logger.NfmLog.Infoln("Handle RemoveSubscription")
-	// subscriptionID := request.Params["subscriptionID"]
 
 	RemoveSubscriptionProcedure(subscriptionID)
 
 	c.JSON(http.StatusNoContent, nil)
-	// return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 }
 
 func (p *Processor) HandleCreateSubscriptionRequest(c *gin.Context, subscription models.NrfSubscriptionData) {
 	logger.NfmLog.Infoln("Handle CreateSubscriptionRequest")
-	// subscription := request.Body.(models.NrfSubscriptionData)
 
 	response, problemDetails := CreateSubscriptionProcedure(subscription)
 	if response != nil {
 		logger.NfmLog.Traceln("CreateSubscription success")
-		// return httpwrapper.NewResponse(http.StatusCreated, nil, response)
 		c.JSON(http.StatusCreated, response)
 	} else if problemDetails != nil {
 		logger.NfmLog.Traceln("CreateSubscription failed")
-		// return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 		c.JSON(int(problemDetails.Status), problemDetails)
 	}
 	problemDetails = &models.ProblemDetails{
@@ -51,7 +46,6 @@ func (p *Processor) HandleCreateSubscriptionRequest(c *gin.Context, subscription
 		Cause:  "UNSPECIFIED",
 	}
 	logger.NfmLog.Traceln("CreateSubscription failed")
-	// return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	c.JSON(http.StatusForbidden, problemDetails)
 }
 
@@ -101,7 +95,6 @@ func CreateSubscriptionProcedure(subscription models.NrfSubscriptionData) (bson.
 }
 
 func (p *Processor) UpdateSubscriptionProcedure(c *gin.Context, subscriptionID string, patchJSON []byte) {
-	// map[string]interface{} {  //OK
 	collName := "Subscriptions"
 	filter := bson.M{"subscriptionId": subscriptionID}
 
@@ -113,13 +106,10 @@ func (p *Processor) UpdateSubscriptionProcedure(c *gin.Context, subscriptionID s
 			Detail: err.Error(),
 		}
 		c.JSON(http.StatusInternalServerError, problemDetails)
-		// return nil
 	} else {
 		if response, err := mongoapi.RestfulAPIGetOne(collName, filter); err == nil {
 			c.JSON(http.StatusOK, response)
-			// return response
 		}
-		// return nil
 	}
 }
 
@@ -132,9 +122,9 @@ func RemoveSubscriptionProcedure(subscriptionID string) {
 	}
 }
 
-func (p *Processor) GetNFInstancesProcedure( // OK
+func (p *Processor) GetNFInstancesProcedure(
 	c *gin.Context, nfType string, limit int,
-) { // (*nrf_context.UriList, *models.ProblemDetails) {
+) {
 	collName := "urilist"
 	filter := bson.M{"nfType": nfType}
 	if nfType == "" {
@@ -151,7 +141,6 @@ func (p *Processor) GetNFInstancesProcedure( // OK
 			Detail: err.Error(),
 			Cause:  "SYSTEM_FAILURE",
 		}
-		// return nil, problemDetail
 		c.JSON(int(problemDetail.Status), problemDetail)
 	}
 	logger.NfmLog.Infoln("ULs: ", ULs)
@@ -167,9 +156,6 @@ func (p *Processor) GetNFInstancesProcedure( // OK
 				Cause:  "SYSTEM_FAILURE",
 			}
 			c.JSON(http.StatusInternalServerError, problemDetail)
-			// return nil, problemDetail
-			// c.JSON(int(problemDetail.Status), problemDetail)
-			// c.Data(http.StatusInternalServerError, "application/json", []byte("error in GetNFInstancesProcedure"))
 		}
 		rspUriList.Link.Item = append(rspUriList.Link.Item, originalUL.Link.Item...)
 		if nfType != "" && rspUriList.NfType == "" {
@@ -178,7 +164,6 @@ func (p *Processor) GetNFInstancesProcedure( // OK
 	}
 
 	nrf_context.NnrfUriListLimit(rspUriList, limit)
-	// return rspUriList, nil
 	c.JSON(http.StatusOK, rspUriList)
 
 	logger.NfmLog.Traceln("GetNFInstances failed")

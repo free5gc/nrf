@@ -40,39 +40,6 @@ func (s *Server) getSearchNFInstances(c *gin.Context) {
 		return
 	}
 
-	// req := httpwrapper.NewRequest(c.Request, nil)
-	// req.Query = c.Request.URL.Query()
-	// httpResponse := s.processor.HandleNFDiscoveryRequest(req)
 	query := c.Request.URL.Query()
 	s.Processor().NFDiscoveryProcedure(c, query)
-
-	//--------------------第2層
-	//response, problemDetails := NFDiscoveryProcedure(url.Values(query))
-	// Send Response
-	// if response != nil {
-	// 	c.JSON(http.StatusOK, response)
-	// } else if problemDetails != nil {
-
-	// } else {
-	// 	problemDetails = &models.ProblemDetails{
-	// 		Status: http.StatusForbidden,
-	// 		Cause:  "UNSPECIFIED",
-	// 	}
-	// 	c.JSON(http.StatusForbidden, problemDetails)  // 問一下為什麼這個用不到
-	// }
-
-	//-------------------
-
-	// responseBody, err := openapi.Serialize(httpResponse.Body, "application/json")
-	// if err != nil {
-	// 	logger.DiscLog.Warnln(err)
-	// 	problemDetails := models.ProblemDetails{
-	// 		Status: http.StatusInternalServerError,
-	// 		Cause:  "SYSTEM_FAILURE",
-	// 		Detail: err.Error(),
-	// 	}
-	// 	c.JSON(http.StatusInternalServerError, problemDetails)
-	// } else {
-	// 	c.Data(httpResponse.Status, "application/json", responseBody)
-	// }
 }
