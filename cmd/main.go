@@ -60,9 +60,6 @@ func action(cliCtx *cli.Context) error {
 		logger.MainLog.Warnln("Terminating... (Wait 2s for other NFs to deregister)")
 		time.Sleep(2 * time.Second) // Waiting for other NFs to deregister
 		cancel()                    // Notify each goroutine and wait them stopped
-		if NRF != nil {
-			NRF.WaitRoutineStopped()
-		}
 	}()
 
 	defer func() {
@@ -87,7 +84,9 @@ func action(cliCtx *cli.Context) error {
 	NRF = nrf
 
 	nrf.Start(tlsKeyLogPath)
-
+	if NRF != nil {
+		NRF.WaitRoutineStopped()
+	}
 	return nil
 }
 

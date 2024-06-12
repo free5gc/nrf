@@ -32,12 +32,18 @@ func NewApp(ctx context.Context, cfg *factory.Config, tlsKeyLogPath string) (*Nr
 	nrf.SetLogEnable(cfg.GetLogEnable())
 	nrf.SetLogLevel(cfg.GetLogLevel())
 	nrf.SetReportCaller(cfg.GetLogReportCaller())
+
+	err1 := nrf_context.InitNrfContext()
+	if err1 != nil {
+		return nrf, err1
+	}
 	p, err := processor.NewProcessor(nrf)
 	if err != nil {
 		return nrf, err
 	}
 	nrf.processor = p
 
+	nrf.ctx, nrf.cancel = context.WithCancel(ctx)
 	nrf.nrfCtx = nrf_context.GetSelf()
 	if nrf.sbiServer, err = sbi.NewServer(nrf, tlsKeyLogPath); err != nil {
 		return nil, err
@@ -145,5 +151,4 @@ func (a *NrfApp) WaitRoutineStopped() {
 
 func (a *NrfApp) Stop() {
 	a.cancel()
-	a.WaitRoutineStopped()
 }

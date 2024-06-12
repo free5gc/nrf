@@ -21,11 +21,6 @@ import (
 	"github.com/free5gc/openapi/models"
 )
 
-// Index is the index handler.
-func Index(c *gin.Context) {
-	c.String(http.StatusOK, "StatusOK")
-}
-
 func (s *Server) getAccessTokenRoutes() []Route {
 	return []Route{
 		{
