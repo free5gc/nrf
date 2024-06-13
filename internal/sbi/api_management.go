@@ -99,14 +99,14 @@ func (s *Server) NFInstance(c *gin.Context) {
 }
 
 func (s *Server) RegisterNFInstance(c *gin.Context) {
-	auth_err := authorizationCheck(c, "nnrf-nfm")
-	if auth_err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
-		return
-	}
+	// auth_err := authorizationCheck(c, "nnrf-nfm")
+	// if auth_err != nil {
+	// 	c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
+	// 	return
+	// }
 
 	// step 1: retrieve http request body
-	var nfprofile models.NfProfile
+	var nfProfile models.NfProfile
 
 	requestBody, err := c.GetRawData()
 	if err != nil {
@@ -122,7 +122,7 @@ func (s *Server) RegisterNFInstance(c *gin.Context) {
 	}
 
 	// step 2: convert requestBody to openapi models
-	err = openapi.Deserialize(&nfprofile, requestBody, "application/json")
+	err = openapi.Deserialize(&nfProfile, requestBody, "application/json")
 	if err != nil {
 		problemDetail := "[Request Body] " + err.Error()
 		rsp := models.ProblemDetails{
@@ -137,30 +137,7 @@ func (s *Server) RegisterNFInstance(c *gin.Context) {
 
 	logger.NfmLog.Infoln("Handle NFRegisterRequest")
 
-	nfProfile := models.NfProfile{}
-	header, response, isUpdate, problemDetails := s.Processor().NFRegisterProcedure(c, nfProfile)
-
-	if response != nil {
-		for key, val := range header {
-			c.Header(key, val[0])
-		}
-		if isUpdate {
-			logger.NfmLog.Traceln("update success")
-
-			c.JSON(http.StatusOK, response)
-		}
-		logger.NfmLog.Traceln("register success")
-		c.JSON(http.StatusCreated, response)
-	} else if problemDetails != nil {
-		logger.NfmLog.Traceln("register failed")
-		c.JSON(int(problemDetails.Status), problemDetails)
-	}
-	problemDetails = &models.ProblemDetails{
-		Status: http.StatusForbidden,
-		Cause:  "UNSPECIFIED",
-	}
-	logger.NfmLog.Traceln("register failed")
-	c.JSON(http.StatusForbidden, problemDetails)
+	s.Processor().NFRegisterProcedure(c, nfProfile)
 }
 
 // UpdateNFInstance - Update NF Instance profile

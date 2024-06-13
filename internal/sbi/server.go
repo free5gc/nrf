@@ -75,15 +75,15 @@ func authorizationCheck(c *gin.Context, serviceName string) error {
 func applyRoutes(group *gin.RouterGroup, routes []Route) {
 	for _, route := range routes {
 		switch route.Method {
-		case "http.MethodGet":
+		case http.MethodGet:
 			group.GET(route.Pattern, route.APIFunc)
-		case "http.MethodPost":
+		case http.MethodPost:
 			group.POST(route.Pattern, route.APIFunc)
-		case "http.MethodPut":
+		case http.MethodPut:
 			group.PUT(route.Pattern, route.APIFunc)
-		case "http.MethodPatch":
+		case http.MethodPatch:
 			group.PATCH(route.Pattern, route.APIFunc)
-		case "http.MethodDelete":
+		case http.MethodDelete:
 			group.DELETE(route.Pattern, route.APIFunc)
 		}
 	}
@@ -93,6 +93,18 @@ func NewServer(nrf nrf, tlsKeyLogPath string) (*Server, error) {
 	s := &Server{
 		nrf: nrf,
 	}
+
+	nfManagementRoutes := s.getNFManagementRoutes()
+	nfManagementGroup := s.router.Group(factory.NrfNfmResUriPrefix)
+	applyRoutes(nfManagementGroup, nfManagementRoutes)
+
+	nfDiscoveryRoutes := s.getNFDiscoveryRoutes()
+	nfDiscoveryGroup := s.router.Group(factory.NrfDiscResUriPrefix)
+	applyRoutes(nfDiscoveryGroup, nfDiscoveryRoutes)
+
+	accessTokenRoutes := s.getAccessTokenRoutes()
+	accessTokenGroup := s.router.Group(factory.NrfAccTokenResUriPrefix)
+	applyRoutes(accessTokenGroup, accessTokenRoutes)
 
 	cfg := s.Config()
 	bindAddr := cfg.GetSbiBindingAddr()
@@ -154,7 +166,7 @@ func (s *Server) startServer(wg *sync.WaitGroup) {
 	// else {
 	// 	err = fmt.Errorf("No support this scheme[%s]", scheme)
 	// }
-
+	logger.SBILog.Errorln("Test_Error ")
 	if err != nil && err != http.ErrServerClosed {
 		logger.SBILog.Errorf("SBI server error: %v", err)
 	}
