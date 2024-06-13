@@ -44,6 +44,11 @@ func NewApp(ctx context.Context, cfg *factory.Config, tlsKeyLogPath string) (*Nr
 	nrf.processor = p
 
 	nrf.ctx, nrf.cancel = context.WithCancel(ctx)
+	err = nrf_context.InitNrfContext()
+	if err != nil {
+		logger.InitLog.Errorln(err)
+		return nrf, err
+	}
 	nrf.nrfCtx = nrf_context.GetSelf()
 	if nrf.sbiServer, err = sbi.NewServer(nrf, tlsKeyLogPath); err != nil {
 		return nil, err
