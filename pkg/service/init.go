@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime/debug"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -13,11 +14,18 @@ import (
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/internal/sbi"
 	"github.com/free5gc/nrf/internal/sbi/processor"
+	"github.com/free5gc/nrf/pkg/app"
 	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/util/mongoapi"
 )
 
+var NRF *NrfApp
+
+var _ app.App = &NrfApp{}
+
 type NrfApp struct {
+	app.App
+
 	cfg       *factory.Config
 	nrfCtx    *nrf_context.NRFContext
 	ctx       context.Context
@@ -114,17 +122,18 @@ func (a *NrfApp) SetReportCaller(reportCaller bool) {
 	logger.Log.SetReportCaller(reportCaller)
 }
 
-func (a *NrfApp) Start(tlsKeyLogPath string) {
+func (a *NrfApp) Start() {
 	if err := mongoapi.SetMongoDB(factory.NrfConfig.Configuration.MongoDBName,
 		factory.NrfConfig.Configuration.MongoDBUrl); err != nil {
 		logger.InitLog.Errorf("SetMongoDB failed: %+v", err)
 		return
 	}
 	logger.InitLog.Infoln("Server starting")
+
 	a.wg.Add(1)
 	go a.listenShutdownEvent()
 
-	if err := a.sbiServer.Run(context.Background(), &a.wg); err != nil {
+	if err := a.sbiServer.Run(a.ctx, &a.wg); err != nil {
 		logger.InitLog.Fatalf("Run SBI server failed: %+v", err)
 	}
 }
@@ -139,14 +148,7 @@ func (a *NrfApp) listenShutdownEvent() {
 	}()
 
 	<-a.ctx.Done()
-
-	if a.sbiServer != nil {
-		a.sbiServer.Stop(context.Background())
-	}
-	err := mongoapi.Drop("NfProfile")
-	if err != nil {
-		logger.InitLog.Errorf("Drop NfProfile collection failed: %+v", err)
-	}
+	a.Terminate()
 }
 
 func (a *NrfApp) WaitRoutineStopped() {
@@ -154,6 +156,16 @@ func (a *NrfApp) WaitRoutineStopped() {
 	logger.MainLog.Infof("NRF App is terminated")
 }
 
-func (a *NrfApp) Stop() {
+func (a *NrfApp) Terminate() {
+	logger.MainLog.Infof("Terminating NRF...")
+	time.Sleep(2 * time.Second) // Waiting for other NFs to deregister
+
 	a.cancel()
+	if a.sbiServer != nil {
+		a.sbiServer.Stop(context.Background())
+	}
+	err := mongoapi.Drop("NfProfile")
+	if err != nil {
+		logger.InitLog.Errorf("Drop NfProfile collection failed: %+v", err)
+	}
 }

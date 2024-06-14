@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"go.mongodb.org/mongo-driver/bson"
 
@@ -19,7 +20,7 @@ import (
 	"github.com/free5gc/util/mongoapi"
 )
 
-func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) *HandlerResponse {
+func (p *Processor) AccessTokenProcedure(c *gin.Context, request models.AccessTokenReq) {
 	logger.AccTokenLog.Debugln("In AccessTokenProcedure")
 
 	var expiration int32 = 1000
@@ -29,8 +30,10 @@ func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) *Handler
 
 	accTokenErr := AccessTokenScopeCheck(request)
 	if accTokenErr != nil {
+		logger.AccTokenLog.Warningf("Scope check error: %+v", accTokenErr)
 		pd := openapi.ProblemDetailsMalformedReqSyntax(accTokenErr.Error)
-		return &HandlerResponse{int(pd.Status), nil, pd}
+		c.JSON(int(pd.Status), pd)
+		return
 	}
 
 	// Create AccessToken
@@ -51,19 +54,16 @@ func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) *Handler
 	if err != nil {
 		logger.AccTokenLog.Warnf("Signed string error: %v", err)
 		pd := openapi.ProblemDetailsMalformedReqSyntax("invalid_request")
-		return &HandlerResponse{int(pd.Status), nil, pd}
+		c.JSON(int(pd.Status), pd)
+		return
 	}
 
-	return &HandlerResponse{
-		http.StatusOK,
-		nil,
-		&models.AccessTokenRsp{
-			AccessToken: accessToken,
-			TokenType:   tokenType,
-			ExpiresIn:   expiration,
-			Scope:       scope,
-		},
-	}
+	c.JSON(http.StatusOK, models.AccessTokenRsp{
+		AccessToken: accessToken,
+		TokenType:   tokenType,
+		ExpiresIn:   expiration,
+		Scope:       scope,
+	})
 }
 
 func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
@@ -211,6 +211,5 @@ func AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
 			}
 		}
 	}
-
 	return nil
 }

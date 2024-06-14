@@ -5,9 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sync"
 	"syscall"
-	"time"
 
 	"github.com/urfave/cli"
 
@@ -49,26 +47,13 @@ func action(cliCtx *cli.Context) error {
 	logger.MainLog.Infoln("NRF version: ", version.GetVersion())
 
 	ctx, cancel := context.WithCancel(context.Background())
+
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	wg := new(sync.WaitGroup)
-	wg.Add(1)
+
 	go func() {
-		defer wg.Done()
-		<-sigCh // Wait for interrupt signal to gracefully shutdown UPF
-
-		logger.MainLog.Warnln("Terminating... (Wait 2s for other NFs to deregister)")
-		time.Sleep(2 * time.Second) // Waiting for other NFs to deregister
-		cancel()                    // Notify each goroutine and wait them stopped
-	}()
-
-	defer func() {
-		select {
-		case sigCh <- nil: // Send signal in case of returning with error
-		default:
-		}
-		wg.Wait()
-		logger.MainLog.Infof("NRF Stopped...")
+		<-sigCh  // Wait for interrupt signal to gracefully shutdown NRF
+		cancel() // Notify each goroutine and wait them stopped
 	}()
 
 	cfg, err := factory.ReadConfig(cliCtx.String("config"))
@@ -83,7 +68,7 @@ func action(cliCtx *cli.Context) error {
 	}
 	NRF = nrf
 
-	nrf.Start(tlsKeyLogPath)
+	nrf.Start()
 	if NRF != nil {
 		NRF.WaitRoutineStopped()
 	}

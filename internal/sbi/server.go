@@ -91,7 +91,8 @@ func applyRoutes(group *gin.RouterGroup, routes []Route) {
 
 func NewServer(nrf nrf, tlsKeyLogPath string) (*Server, error) {
 	s := &Server{
-		nrf: nrf,
+		nrf:    nrf,
+		router: logger_util.NewGinWithLogrus(logger.GinLog),
 	}
 
 	nfManagementRoutes := s.getNFManagementRoutes()
@@ -123,8 +124,6 @@ func (s *Server) Run(traceCtx context.Context, wg *sync.WaitGroup) error {
 	wg.Add(1)
 	go s.startServer(wg)
 
-	// example: use of Consumer()
-	// s.Consumer().RegisterNFInstance(s.CancelContext())
 	return nil
 }
 
@@ -147,7 +146,6 @@ func (s *Server) startServer(wg *sync.WaitGroup) {
 			// Print stack for panic to log. Fatalf() will let program exit.
 			logger.SBILog.Fatalf("panic: %v\n%s", p, string(debug.Stack()))
 		}
-
 		wg.Done()
 	}()
 
@@ -163,14 +161,11 @@ func (s *Server) startServer(wg *sync.WaitGroup) {
 			cfg.GetCertPemPath(),
 			cfg.GetCertKeyPath())
 	}
-	// else {
-	// 	err = fmt.Errorf("No support this scheme[%s]", scheme)
-	// }
-	logger.SBILog.Errorln("Test_Error ")
+
 	if err != nil && err != http.ErrServerClosed {
 		logger.SBILog.Errorf("SBI server error: %v", err)
 	}
-	logger.SBILog.Warnf("SBI server (listen on %s) stopped", s.httpServer.Addr)
+	logger.SBILog.Infof("SBI server (listen on %s) stopped", s.httpServer.Addr)
 }
 
 func (s *Server) bindData(gc *gin.Context, data interface{}) error {
@@ -185,50 +180,50 @@ func (s *Server) bindData(gc *gin.Context, data interface{}) error {
 	return nil
 }
 
-func (s *Server) buildAndSendHttpResponse(
-	gc *gin.Context,
-	hdlRsp *processor.HandlerResponse,
-	multipart bool,
-) {
-	if hdlRsp.Status == 0 {
-		// No Response to send
-		return
-	}
+// func (s *Server) buildAndSendHttpResponse(
+// 	gc *gin.Context,
+// 	hdlRsp *processor.HandlerResponse,
+// 	multipart bool,
+// ) {
+// 	if hdlRsp.Status == 0 {
+// 		// No Response to send
+// 		return
+// 	}
 
-	rsp := httpwrapper.NewResponse(hdlRsp.Status, hdlRsp.Headers, hdlRsp.Body)
+// 	rsp := httpwrapper.NewResponse(hdlRsp.Status, hdlRsp.Headers, hdlRsp.Body)
 
-	buildHttpResponseHeader(gc, rsp)
+// 	buildHttpResponseHeader(gc, rsp)
 
-	var rspBody []byte
-	var contentType string
-	var err error
-	if multipart {
-		rspBody, contentType, err = openapi.MultipartSerialize(rsp.Body)
-	} else {
-		// TODO: support other JSON content-type
-		rspBody, err = openapi.Serialize(rsp.Body, "application/json")
-		contentType = "application/json"
-	}
+// 	var rspBody []byte
+// 	var contentType string
+// 	var err error
+// 	if multipart {
+// 		rspBody, contentType, err = openapi.MultipartSerialize(rsp.Body)
+// 	} else {
+// 		// TODO: support other JSON content-type
+// 		rspBody, err = openapi.Serialize(rsp.Body, "application/json")
+// 		contentType = "application/json"
+// 	}
 
-	if err != nil {
-		logger.SBILog.Errorln(err)
-		gc.JSON(http.StatusInternalServerError, openapi.ProblemDetailsSystemFailure(err.Error()))
-	} else {
-		gc.Data(rsp.Status, contentType, rspBody)
-	}
-}
+// 	if err != nil {
+// 		logger.SBILog.Errorln(err)
+// 		gc.JSON(http.StatusInternalServerError, openapi.ProblemDetailsSystemFailure(err.Error()))
+// 	} else {
+// 		gc.Data(rsp.Status, contentType, rspBody)
+// 	}
+// }
 
-func buildHttpResponseHeader(gc *gin.Context, rsp *httpwrapper.Response) {
-	for k, v := range rsp.Header {
-		// Concatenate all values of the Header with ','
-		allValues := ""
-		for i, vv := range v {
-			if i == 0 {
-				allValues += vv
-			} else {
-				allValues += "," + vv
-			}
-		}
-		gc.Header(k, allValues)
-	}
-}
+// func buildHttpResponseHeader(gc *gin.Context, rsp *httpwrapper.Response) {
+// 	for k, v := range rsp.Header {
+// 		// Concatenate all values of the Header with ','
+// 		allValues := ""
+// 		for i, vv := range v {
+// 			if i == 0 {
+// 				allValues += vv
+// 			} else {
+// 				allValues += "," + vv
+// 			}
+// 		}
+// 		gc.Header(k, allValues)
+// 	}
+// }

@@ -27,7 +27,7 @@ func (s *Server) getAccessTokenRoutes() []Route {
 			Method:  http.MethodGet,
 			Pattern: "/",
 			APIFunc: func(ctx *gin.Context) {
-				ctx.JSON(http.StatusOK, gin.H{"status": "StatusOK"})
+				ctx.JSON(http.StatusOK, gin.H{"status": "free5GC"})
 			},
 		},
 		{
@@ -42,7 +42,6 @@ func (s *Server) apiAccessTokenRequest(c *gin.Context) {
 	logger.AccTokenLog.Debugln("Handle AccessTokenRequest")
 
 	authEnable := factory.NrfConfig.GetOAuth()
-
 	if !authEnable {
 		rsp := models.ProblemDetails{
 			Title:  "OAuth2 not enable",
@@ -52,17 +51,16 @@ func (s *Server) apiAccessTokenRequest(c *gin.Context) {
 		return
 	}
 
-	var accessTokenReq models.AccessTokenReq
-	var r *http.Request = c.Request
-
-	// Request parser
-	err := r.ParseForm()
-	if err != nil {
-		logger.AccTokenLog.Errorf(err.Error())
+	if err := c.Request.ParseForm(); err != nil {
+		logger.AccTokenLog.Errorf("Error parsing form: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Unable to parse form"})
 		return
 	}
+
+	var accessTokenReq models.AccessTokenReq
+
 	rt := reflect.TypeOf(accessTokenReq)
-	for key, value := range r.PostForm {
+	for key, value := range c.Request.PostForm {
 		var name string
 		var vt reflect.Type
 		for i := 0; i < rt.NumField(); i++ {
@@ -76,7 +74,7 @@ func (s *Server) apiAccessTokenRequest(c *gin.Context) {
 			reflect.ValueOf(&accessTokenReq).Elem().FieldByName(name).SetString(value[0])
 		} else {
 			plmnid := models.PlmnId{}
-			err = json.Unmarshal([]byte(value[0]), &plmnid)
+			err := json.Unmarshal([]byte(value[0]), &plmnid)
 			if err != nil {
 				problemDetail := "[Request Body] " + err.Error()
 				rsp := models.ProblemDetails{
@@ -92,21 +90,5 @@ func (s *Server) apiAccessTokenRequest(c *gin.Context) {
 			reflect.ValueOf(&accessTokenReq).Elem().FieldByName(name).Set(reflectvalue)
 		}
 	}
-
-	if s.bindData(c, &accessTokenReq) != nil {
-		return
-	}
-	if err != nil {
-		problemDetail := "[Request Body] " + err.Error()
-		rsp := models.ProblemDetails{
-			Title:  "Malformed request syntax",
-			Status: http.StatusBadRequest,
-			Detail: problemDetail,
-		}
-		logger.AccTokenLog.Warnln(problemDetail)
-		c.JSON(http.StatusBadRequest, rsp)
-		return
-	}
-	hdlRsp := s.Processor().AccessTokenProcedure(accessTokenReq)
-	s.buildAndSendHttpResponse(c, hdlRsp, false)
+	s.Processor().AccessTokenProcedure(c, accessTokenReq)
 }
