@@ -78,6 +78,7 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 			Cause:  "Loss mandatory parameter",
 		}
 		c.JSON(int(problemDetails.Status), problemDetails)
+		return
 	}
 
 	if queryParameters["complexQuery"] != nil {
@@ -100,6 +101,7 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 				},
 			}
 			c.JSON(int(problemDetails.Status), problemDetails)
+			return
 		}
 	}
 
@@ -120,6 +122,7 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 			Cause:  "SYSTEM_FAILURE",
 		}
 		c.JSON(int(problemDetails.Status), problemDetails)
+		return
 	}
 
 	// nfProfile data for response
@@ -133,6 +136,7 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 			Cause:  "SYSTEM_FAILURE",
 		}
 		c.JSON(int(problemDetails.Status), problemDetails)
+		return
 	}
 
 	// handle ipv4 & ipv6

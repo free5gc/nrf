@@ -34,12 +34,6 @@ func (s *Server) getNFDiscoveryRoutes() []Route {
 
 // SearchNFInstances - Search a collection of NF Instances
 func (s *Server) getSearchNFInstances(c *gin.Context) {
-	auth_err := authorizationCheck(c, "nnrf-disc")
-	if auth_err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": auth_err.Error()})
-		return
-	}
-
 	query := c.Request.URL.Query()
 	s.Processor().NFDiscoveryProcedure(c, query)
 }

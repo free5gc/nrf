@@ -14,21 +14,12 @@ import (
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/internal/sbi/processor"
+	"github.com/free5gc/nrf/internal/util"
 	"github.com/free5gc/nrf/pkg/factory"
-	"github.com/free5gc/openapi"
+	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/util/httpwrapper"
 	logger_util "github.com/free5gc/util/logger"
 )
-
-const (
-	CorsConfigMaxAge = 86400
-)
-
-type Route struct {
-	Method  string
-	Pattern string
-	APIFunc gin.HandlerFunc
-}
 
 type Server struct {
 	nrf
@@ -44,10 +35,6 @@ type nrf interface {
 	Processor() *processor.Processor
 }
 
-type RouteGroup interface {
-	applyRoutes(engine *gin.Engine) *gin.RouterGroup
-}
-
 // Routes is the list of the generated Route.
 type Routes []Route
 
@@ -59,6 +46,10 @@ func (s *Server) NewRouter() *gin.Engine {
 	applyRoutes(nfmGroup, s.getNFManagementRoutes())
 
 	nfdisGroup := router.Group(factory.NrfDiscResUriPrefix)
+	routerAuthorizationCheck := util.NewRouterAuthorizationCheck(models.ServiceName_NNRF_DISC)
+	nfdisGroup.Use(func(c *gin.Context) {
+		routerAuthorizationCheck.Check(c, nrf_context.GetSelf())
+	})
 	applyRoutes(nfdisGroup, s.getNFDiscoveryRoutes())
 
 	accTokenGroup := router.Group(factory.NrfAccTokenResUriPrefix)
@@ -67,26 +58,9 @@ func (s *Server) NewRouter() *gin.Engine {
 	return router
 }
 
-func authorizationCheck(c *gin.Context, serviceName string) error {
+func authorizationCheck(c *gin.Context, serviceName models.ServiceName) error {
 	token := c.Request.Header.Get("Authorization")
 	return nrf_context.GetSelf().AuthorizationCheck(token, serviceName) // name: nnrf-disc & nnrf-nfm
-}
-
-func applyRoutes(group *gin.RouterGroup, routes []Route) {
-	for _, route := range routes {
-		switch route.Method {
-		case http.MethodGet:
-			group.GET(route.Pattern, route.APIFunc)
-		case http.MethodPost:
-			group.POST(route.Pattern, route.APIFunc)
-		case http.MethodPut:
-			group.PUT(route.Pattern, route.APIFunc)
-		case http.MethodPatch:
-			group.PATCH(route.Pattern, route.APIFunc)
-		case http.MethodDelete:
-			group.DELETE(route.Pattern, route.APIFunc)
-		}
-	}
 }
 
 func NewServer(nrf nrf, tlsKeyLogPath string) (*Server, error) {
@@ -167,63 +141,3 @@ func (s *Server) startServer(wg *sync.WaitGroup) {
 	}
 	logger.SBILog.Infof("SBI server (listen on %s) stopped", s.httpServer.Addr)
 }
-
-func (s *Server) bindData(gc *gin.Context, data interface{}) error {
-	err := gc.Bind(data)
-	if err != nil {
-		logger.SBILog.Errorf("Bind Request Body error: %v", err)
-		gc.JSON(http.StatusBadRequest,
-			openapi.ProblemDetailsMalformedReqSyntax(err.Error()))
-		return err
-	}
-
-	return nil
-}
-
-// func (s *Server) buildAndSendHttpResponse(
-// 	gc *gin.Context,
-// 	hdlRsp *processor.HandlerResponse,
-// 	multipart bool,
-// ) {
-// 	if hdlRsp.Status == 0 {
-// 		// No Response to send
-// 		return
-// 	}
-
-// 	rsp := httpwrapper.NewResponse(hdlRsp.Status, hdlRsp.Headers, hdlRsp.Body)
-
-// 	buildHttpResponseHeader(gc, rsp)
-
-// 	var rspBody []byte
-// 	var contentType string
-// 	var err error
-// 	if multipart {
-// 		rspBody, contentType, err = openapi.MultipartSerialize(rsp.Body)
-// 	} else {
-// 		// TODO: support other JSON content-type
-// 		rspBody, err = openapi.Serialize(rsp.Body, "application/json")
-// 		contentType = "application/json"
-// 	}
-
-// 	if err != nil {
-// 		logger.SBILog.Errorln(err)
-// 		gc.JSON(http.StatusInternalServerError, openapi.ProblemDetailsSystemFailure(err.Error()))
-// 	} else {
-// 		gc.Data(rsp.Status, contentType, rspBody)
-// 	}
-// }
-
-// func buildHttpResponseHeader(gc *gin.Context, rsp *httpwrapper.Response) {
-// 	for k, v := range rsp.Header {
-// 		// Concatenate all values of the Header with ','
-// 		allValues := ""
-// 		for i, vv := range v {
-// 			if i == 0 {
-// 				allValues += vv
-// 			} else {
-// 				allValues += "," + vv
-// 			}
-// 		}
-// 		gc.Header(k, allValues)
-// 	}
-// }

@@ -37,9 +37,11 @@ func (p *Processor) HandleCreateSubscriptionRequest(c *gin.Context, subscription
 	if response != nil {
 		logger.NfmLog.Traceln("CreateSubscription success")
 		c.JSON(http.StatusCreated, response)
+		return
 	} else if problemDetails != nil {
 		logger.NfmLog.Traceln("CreateSubscription failed")
 		c.JSON(int(problemDetails.Status), problemDetails)
+		return
 	}
 	problemDetails = &models.ProblemDetails{
 		Status: http.StatusForbidden,
@@ -142,6 +144,7 @@ func (p *Processor) GetNFInstancesProcedure(
 			Cause:  "SYSTEM_FAILURE",
 		}
 		c.JSON(int(problemDetail.Status), problemDetail)
+		return
 	}
 	logger.NfmLog.Infoln("ULs: ", ULs)
 	rspUriList := &nrf_context.UriList{}
@@ -156,18 +159,15 @@ func (p *Processor) GetNFInstancesProcedure(
 				Cause:  "SYSTEM_FAILURE",
 			}
 			c.JSON(http.StatusInternalServerError, problemDetail)
+			return
 		}
 		rspUriList.Link.Item = append(rspUriList.Link.Item, originalUL.Link.Item...)
 		if nfType != "" && rspUriList.NfType == "" {
 			rspUriList.NfType = originalUL.NfType
 		}
 	}
-
 	nrf_context.NnrfUriListLimit(rspUriList, limit)
 	c.JSON(http.StatusOK, rspUriList)
-
-	logger.NfmLog.Traceln("GetNFInstances failed")
-	c.JSON(http.StatusForbidden, nil)
 }
 
 func (p *Processor) NFDeregisterProcedure(c *gin.Context, nfInstanceID string) {
@@ -184,6 +184,7 @@ func (p *Processor) NFDeregisterProcedure(c *gin.Context, nfInstanceID string) {
 			Cause:  "SYSTEM_FAILURE",
 		}
 		c.JSON(http.StatusInternalServerError, problemDetail)
+		return
 	}
 	c.JSON(http.StatusNoContent, nil)
 	time.Sleep(time.Duration(1) * time.Second)
