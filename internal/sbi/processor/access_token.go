@@ -20,7 +20,7 @@ import (
 	"github.com/free5gc/util/mongoapi"
 )
 
-func (p *Processor) HandleAccessTokenRequest(c *gin.Context, accessTokenReq models.AccessTokenReq) {
+func (p *Processor) HandleAccessTokenRequest(c *gin.Context, accessTokenReq models.NrfAccessTokenAccessTokenReq) {
 	// Param of AccessTokenRsp
 	logger.AccTokenLog.Debugln("Handle AccessTokenRequest")
 
@@ -42,8 +42,8 @@ func (p *Processor) HandleAccessTokenRequest(c *gin.Context, accessTokenReq mode
 	util.GinProblemJson(c, problemDetails)
 }
 
-func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) (
-	*models.AccessTokenRsp, *models.AccessTokenErr,
+func (p *Processor) AccessTokenProcedure(request models.NrfAccessTokenAccessTokenReq) (
+	*models.NrfAccessTokenAccessTokenRsp, *models.AccessTokenErr,
 ) {
 	logger.AccTokenLog.Debugln("In AccessTokenProcedure")
 
@@ -62,7 +62,7 @@ func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) (
 
 	// Create AccessToken
 	nrfCtx := nrf_context.GetSelf()
-	accessTokenClaims := models.AccessTokenClaims{
+	accessTokenClaims := models.NrfAccessTokenAccessTokenClaims{
 		Iss:            nrfCtx.Nrf_NfInstanceID,    // NF instance id of the NRF
 		Sub:            request.NfInstanceId,       // nfInstanceId of service consumer
 		Aud:            request.TargetNfInstanceId, // nfInstanceId of service producer
@@ -82,7 +82,7 @@ func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) (
 		}
 	}
 
-	response := &models.AccessTokenRsp{
+	response := &models.NrfAccessTokenAccessTokenRsp{
 		AccessToken: accessToken,
 		TokenType:   tokenType,
 		ExpiresIn:   expiration,
@@ -91,7 +91,7 @@ func (p *Processor) AccessTokenProcedure(request models.AccessTokenReq) (
 	return response, nil
 }
 
-func (p *Processor) AccessTokenScopeCheck(req models.AccessTokenReq) *models.AccessTokenErr {
+func (p *Processor) AccessTokenScopeCheck(req models.NrfAccessTokenAccessTokenReq) *models.AccessTokenErr {
 	// Check with nf profile
 	collName := nrf_context.NfProfileCollName
 	reqGrantType := req.GrantType
@@ -121,7 +121,7 @@ func (p *Processor) AccessTokenScopeCheck(req models.AccessTokenReq) *models.Acc
 		}
 	}
 
-	nfProfile := models.NfProfile{}
+	nfProfile := models.NrfNfManagementNfProfile{}
 
 	err = mapstruct.Decode(consumerNfInfo, &nfProfile)
 	if err != nil {
@@ -199,7 +199,7 @@ func (p *Processor) AccessTokenScopeCheck(req models.AccessTokenReq) *models.Acc
 		}
 	}
 
-	nfProfile = models.NfProfile{}
+	nfProfile = models.NrfNfManagementNfProfile{}
 	err = mapstruct.Decode(producerNfInfo, &nfProfile)
 	if err != nil {
 		logger.AccTokenLog.Errorln("Certificate verify error: " + err.Error())
@@ -207,7 +207,7 @@ func (p *Processor) AccessTokenScopeCheck(req models.AccessTokenReq) *models.Acc
 			Error: "invalid_client",
 		}
 	}
-	nfServices := *nfProfile.NfServices
+	nfServices := nfProfile.NfServices
 
 	scopes := strings.Split(req.Scope, " ")
 
