@@ -329,8 +329,8 @@ func (s *Server) GetNrfInfo() *models.NrfInfo {
 	return &nrfinfo
 }
 
-func (s *Server) getUdrInfo() map[string]models.UdrInfo {
-	servedUdrInfo := make(map[string]models.UdrInfo)
+func (s *Server) getUdrInfo() map[string]*models.UdrInfo {
+	servedUdrInfo := make(map[string]*models.UdrInfo)
 	var UDRProfile models.NfProfile
 
 	collName := nrf_context.NfProfileCollName
@@ -352,13 +352,13 @@ func (s *Server) getUdrInfo() map[string]models.UdrInfo {
 			panic(err)
 		}
 		index := strconv.Itoa(i)
-		servedUdrInfo[index] = *UDRProfile.UdrInfo
+		servedUdrInfo[index] = UDRProfile.UdrInfo
 	}
 	return servedUdrInfo
 }
 
-func (s *Server) getUdmInfo() map[string]models.UdmInfo {
-	servedUdmInfo := make(map[string]models.UdmInfo)
+func (s *Server) getUdmInfo() map[string]*models.UdmInfo {
+	servedUdmInfo := make(map[string]*models.UdmInfo)
 	var UDMProfile models.NfProfile
 
 	collName := nrf_context.NfProfileCollName
@@ -380,13 +380,13 @@ func (s *Server) getUdmInfo() map[string]models.UdmInfo {
 			panic(err)
 		}
 		index := strconv.Itoa(i)
-		servedUdmInfo[index] = *UDMProfile.UdmInfo
+		servedUdmInfo[index] = UDMProfile.UdmInfo
 	}
 	return servedUdmInfo
 }
 
-func (s *Server) getAusfInfo() map[string]models.AusfInfo {
-	servedAusfInfo := make(map[string]models.AusfInfo)
+func (s *Server) getAusfInfo() map[string]*models.AusfInfo {
+	servedAusfInfo := make(map[string]*models.AusfInfo)
 	var AUSFProfile models.NfProfile
 
 	collName := nrf_context.NfProfileCollName
@@ -407,13 +407,13 @@ func (s *Server) getAusfInfo() map[string]models.AusfInfo {
 			panic(err)
 		}
 		index := strconv.Itoa(i)
-		servedAusfInfo[index] = *AUSFProfile.AusfInfo
+		servedAusfInfo[index] = AUSFProfile.AusfInfo
 	}
 	return servedAusfInfo
 }
 
-func (s *Server) getAmfInfo() map[string]models.AmfInfo {
-	servedAmfinfo := make(map[string]models.AmfInfo)
+func (s *Server) getAmfInfo() map[string]*models.AmfInfo {
+	servedAmfinfo := make(map[string]*models.AmfInfo)
 	var AMFProfile models.NfProfile
 
 	collName := nrf_context.NfProfileCollName
@@ -434,13 +434,13 @@ func (s *Server) getAmfInfo() map[string]models.AmfInfo {
 			panic(err)
 		}
 		index := strconv.Itoa(i)
-		servedAmfinfo[index] = *AMFProfile.AmfInfo
+		servedAmfinfo[index] = AMFProfile.AmfInfo
 	}
 	return servedAmfinfo
 }
 
-func (s *Server) getSmfInfo() map[string]models.SmfInfo {
-	servedSmfInfo := make(map[string]models.SmfInfo)
+func (s *Server) getSmfInfo() map[string]*models.SmfInfo {
+	servedSmfInfo := make(map[string]*models.SmfInfo)
 	var SMFProfile models.NfProfile
 
 	collName := nrf_context.NfProfileCollName
@@ -461,13 +461,13 @@ func (s *Server) getSmfInfo() map[string]models.SmfInfo {
 			panic(err)
 		}
 		index := strconv.Itoa(i)
-		servedSmfInfo[index] = *SMFProfile.SmfInfo
+		servedSmfInfo[index] = SMFProfile.SmfInfo
 	}
 	return servedSmfInfo
 }
 
-func (s *Server) getUpfInfo() map[string]models.UpfInfo {
-	servedUpfInfo := make(map[string]models.UpfInfo)
+func (s *Server) getUpfInfo() map[string]*models.UpfInfo {
+	servedUpfInfo := make(map[string]*models.UpfInfo)
 	var UPFProfile models.NfProfile
 
 	collName := nrf_context.NfProfileCollName
@@ -488,13 +488,13 @@ func (s *Server) getUpfInfo() map[string]models.UpfInfo {
 			panic(err)
 		}
 		index := strconv.Itoa(i)
-		servedUpfInfo[index] = *UPFProfile.UpfInfo
+		servedUpfInfo[index] = UPFProfile.UpfInfo
 	}
 	return servedUpfInfo
 }
 
-func (s *Server) getPcfInfo() map[string]models.PcfInfo {
-	servedPcfInfo := make(map[string]models.PcfInfo)
+func (s *Server) getPcfInfo() map[string]*models.PcfInfo {
+	servedPcfInfo := make(map[string]*models.PcfInfo)
 	var PCFProfile models.NfProfile
 
 	collName := nrf_context.NfProfileCollName
@@ -515,13 +515,13 @@ func (s *Server) getPcfInfo() map[string]models.PcfInfo {
 			panic(err)
 		}
 		index := strconv.Itoa(i)
-		servedPcfInfo[index] = *PCFProfile.PcfInfo
+		servedPcfInfo[index] = PCFProfile.PcfInfo
 	}
 	return servedPcfInfo
 }
 
-func (s *Server) getBsfInfo() map[string]models.BsfInfo {
-	servedBsfInfo := make(map[string]models.BsfInfo)
+func (s *Server) getBsfInfo() map[string]*models.BsfInfo {
+	servedBsfInfo := make(map[string]*models.BsfInfo)
 	var BSFProfile models.NfProfile
 
 	collName := nrf_context.NfProfileCollName
@@ -542,13 +542,13 @@ func (s *Server) getBsfInfo() map[string]models.BsfInfo {
 			panic(err)
 		}
 		index := strconv.Itoa(i)
-		servedBsfInfo[index] = *BSFProfile.BsfInfo
+		servedBsfInfo[index] = BSFProfile.BsfInfo
 	}
 	return servedBsfInfo
 }
 
-func (s *Server) getChfInfo() map[string]models.ChfInfo {
-	servedChfInfo := make(map[string]models.ChfInfo)
+func (s *Server) getChfInfo() map[string]*models.ChfInfo {
+	servedChfInfo := make(map[string]*models.ChfInfo)
 	var CHFProfile models.NfProfile
 
 	collName := nrf_context.NfProfileCollName
@@ -569,7 +569,7 @@ func (s *Server) getChfInfo() map[string]models.ChfInfo {
 			panic(err)
 		}
 		index := strconv.Itoa(i)
-		servedChfInfo[index] = *CHFProfile.ChfInfo
+		servedChfInfo[index] = CHFProfile.ChfInfo
 	}
 	return servedChfInfo
 }

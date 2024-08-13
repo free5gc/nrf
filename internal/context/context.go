@@ -107,20 +107,20 @@ func InitNrfContext() error {
 	}
 
 	NFServices := InitNFService(serviceNameList, config.Info.Version)
-	nrfContext.NrfNfProfile.NfServices = &NFServices
+	nrfContext.NrfNfProfile.NfServices = NFServices
 	return nil
 }
 
-func InitNFService(srvNameList []string, version string) []models.NfService {
+func InitNFService(srvNameList []string, version string) []*models.NfService {
 	tmpVersion := strings.Split(version, ".")
 	versionUri := "v" + tmpVersion[0]
-	NFServices := make([]models.NfService, len(srvNameList))
+	NFServices := make([]*models.NfService, len(srvNameList))
 	for index, nameString := range srvNameList {
 		name := models.ServiceName(nameString)
-		NFServices[index] = models.NfService{
+		NFServices[index] = &models.NfService{
 			ServiceInstanceId: strconv.Itoa(index),
 			ServiceName:       name,
-			Versions: &[]models.NfServiceVersion{
+			Versions: []*models.NfServiceVersion{
 				{
 					ApiFullVersion:  version,
 					ApiVersionInUri: versionUri,
@@ -129,7 +129,7 @@ func InitNFService(srvNameList []string, version string) []models.NfService {
 			Scheme:          models.UriScheme(factory.NrfConfig.GetSbiScheme()),
 			NfServiceStatus: models.NfServiceStatus_REGISTERED,
 			ApiPrefix:       factory.NrfConfig.GetSbiUri(),
-			IpEndPoints: &[]models.IpEndPoint{
+			IpEndPoints: []*models.IpEndPoint{
 				{
 					Ipv4Address: factory.NrfConfig.GetSbiRegisterIP(),
 					Transport:   models.TransportProtocol_TCP,

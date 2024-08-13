@@ -208,7 +208,7 @@ func (p *Processor) AccessTokenScopeCheck(req models.AccessTokenReq) *models.Acc
 			Error: "invalid_client",
 		}
 	}
-	nfServices := *nfProfile.NfServices
+	nfServices := nfProfile.NfServices
 
 	scopes := strings.Split(req.Scope, " ")
 
@@ -221,7 +221,7 @@ func (p *Processor) AccessTokenScopeCheck(req models.AccessTokenReq) *models.Acc
 					break
 				} else {
 					for _, nfType := range nfService.AllowedNfTypes {
-						if string(nfType) == reqNfType {
+						if string(*nfType) == reqNfType {
 							found = true
 							break
 						}
