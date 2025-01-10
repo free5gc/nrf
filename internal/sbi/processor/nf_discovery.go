@@ -50,6 +50,7 @@ func validateQueryParameters(queryParameters url.Values) bool {
 		"BSF":    true,
 		"CHF":    true,
 		"NWDAF":  true,
+		"SCP":    true,
 	}
 	var tgt, req string
 	if queryParameters["target-nf-type"] != nil {
@@ -173,6 +174,80 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 	}
 	validityPeriod := 100
 
+	// Indirect Communication
+	// Only the following NF pairs support indirect communication
+	supportNFPairForIndirectCommunication := false
+	npPairs := map[string][]string{
+		"AMF":  {"AUSF", "SMF"},
+		"AUSF": {"UDM", "AMF"},
+		"UDM":  {"UDR", "AUSF"},
+		"UDR":  {"UDM", "NEF"},
+		"SMF":  {"AMF"},
+		"NEF":  {"UDR"},
+	}
+	sourceNF := ""
+	targetNF := ""
+	if values, exists := queryParameters["requester-nf-type"]; exists && len(values) > 0 {
+		sourceNF = values[0]
+	}
+	if values, exists := queryParameters["target-nf-type"]; exists && len(values) > 0 {
+		targetNF = values[0]
+	}
+
+	if validTargets, exists := npPairs[sourceNF]; exists {
+		for _, validTarget := range validTargets {
+			if validTarget == targetNF {
+				supportNFPairForIndirectCommunication = true
+			}
+		}
+
+	}
+	ScpUri := nrf_context.GetSelf().ScpUri
+	if ScpUri != "" && supportNFPairForIndirectCommunication {
+		// parse uri to host and port
+		parsedURL, err := url.Parse(ScpUri)
+		if err != nil {
+			logger.DiscLog.Errorln("Error parsing URL:", err)
+			return
+		}
+		host := parsedURL.Host
+		hostParts := strings.Split(host, ":")
+		if len(hostParts) != 2 {
+			logger.DiscLog.Errorln("Invalid host format, expected IP:PORT")
+			return
+		}
+		ScpIp := hostParts[0]
+		scpPortInt, err := strconv.Atoi(hostParts[1])
+		if err != nil {
+			logger.DiscLog.Errorln("Invalid port value: ", err)
+		}
+		logger.DiscLog.Infof("ScpIp: %v,  scpPortInt: %v", ScpIp, scpPortInt)
+		logger.DiscLog.Infof("Discovery with indirect communication, the message will pass to SCP: [%v]", ScpUri)
+		if len(nfProfilesStruct) > 0 {
+			for i := range nfProfilesStruct {
+				nfProfilesStruct[i].Ipv4Addresses[0] = ScpUri
+
+				if nfProfilesStruct[i].NfServices != nil {
+					for j := range *nfProfilesStruct[i].NfServices {
+						nfService := &(*nfProfilesStruct[i].NfServices)[j]
+
+						if nfService.IpEndPoints != nil {
+							for k := range *nfService.IpEndPoints {
+								ipEndPoint := &(*nfService.IpEndPoints)[k]
+								ipEndPoint.Ipv4Address = ScpIp
+								ipEndPoint.Port = int32(scpPortInt)
+							}
+						}
+						// for UDM search
+						if nfService.ApiPrefix != "" {
+							nfService.ApiPrefix = ScpUri
+						}
+					}
+				}
+			}
+		}
+
+	}
 	// Build SearchResult model
 	searchResult := &models.SearchResult{
 		ValidityPeriod: int32(validityPeriod),

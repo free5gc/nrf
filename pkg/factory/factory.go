@@ -30,6 +30,13 @@ func InitConfigFactory(f string, cfg *Config) error {
 		if yamlErr := yaml.Unmarshal(content, cfg); yamlErr != nil {
 			return fmt.Errorf("[Factory] %+v", yamlErr)
 		}
+		// Check Communication Mode
+		if cfg.Configuration.ScpUri == "" {
+			logger.CfgLog.Infoln("Direct Communication Mode")
+		} else {
+			logger.CfgLog.Infof("Indirect Communication Mode, the control message will pass to SCP: [%v]", cfg.Configuration.ScpUri)
+		}
+
 	}
 
 	return nil

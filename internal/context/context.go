@@ -28,6 +28,7 @@ type NRFContext struct {
 	NrfCert          *x509.Certificate
 	NfRegistNum      int
 	nfRegistNumLock  sync.RWMutex
+	ScpUri           string
 }
 
 const (
@@ -47,6 +48,9 @@ func InitNrfContext() error {
 	logger.InitLog.Infof("nrfconfig Info: Version[%s] Description[%s]",
 		config.Info.Version, config.Info.Description)
 	configuration := config.Configuration
+	if configuration.ScpUri != "" {
+		nrfContext.ScpUri = configuration.ScpUri
+	}
 
 	nrfContext.NrfNfProfile.NfInstanceId = uuid.New().String()
 	nrfContext.NrfNfProfile.NfType = models.NfType_NRF
