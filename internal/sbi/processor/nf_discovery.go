@@ -199,7 +199,6 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 				supportNFPairForIndirectCommunication = true
 			}
 		}
-
 	}
 	nrfSelf := nrf_context.GetSelf()
 	ScpUri := nrfSelf.ScpUri
@@ -232,7 +231,6 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 				}
 			}
 		}
-
 	}
 	// Build SearchResult model
 	searchResult := &models.SearchResult{

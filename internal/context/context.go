@@ -77,7 +77,6 @@ func InitNrfContext() error {
 			logger.DiscLog.Infof("ScpIp: %v,  scpPortInt: %v", nrfContext.ScpIp, nrfContext.ScpPortInt)
 			nrfContext.ScpUri = configuration.ScpUri
 		}
-
 	}
 	nrfContext.ScpHasRegister = false
 

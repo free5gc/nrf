@@ -34,9 +34,11 @@ func InitConfigFactory(f string, cfg *Config) error {
 		if cfg.Configuration.ScpUri == "" {
 			logger.CfgLog.Infoln("Direct Communication Mode")
 		} else {
-			logger.CfgLog.Infof("Indirect Communication Mode, the control message will pass to SCP: [%v]", cfg.Configuration.ScpUri)
+			logger.CfgLog.Infof(
+				"Indirect Communication Mode, the control message will pass to SCP: [%v]",
+				cfg.Configuration.ScpUri,
+			)
 		}
-
 	}
 
 	return nil
