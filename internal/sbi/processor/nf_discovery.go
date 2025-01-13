@@ -193,7 +193,6 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 	if values, exists := queryParameters["target-nf-type"]; exists && len(values) > 0 {
 		targetNF = values[0]
 	}
-
 	if validTargets, exists := npPairs[sourceNF]; exists {
 		for _, validTarget := range validTargets {
 			if validTarget == targetNF {
@@ -202,26 +201,13 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 		}
 
 	}
-	ScpUri := nrf_context.GetSelf().ScpUri
-	if ScpUri != "" && supportNFPairForIndirectCommunication {
-		// parse uri to host and port
-		parsedURL, err := url.Parse(ScpUri)
-		if err != nil {
-			logger.DiscLog.Errorln("Error parsing URL:", err)
-			return
-		}
-		host := parsedURL.Host
-		hostParts := strings.Split(host, ":")
-		if len(hostParts) != 2 {
-			logger.DiscLog.Errorln("Invalid host format, expected IP:PORT")
-			return
-		}
-		ScpIp := hostParts[0]
-		scpPortInt, err := strconv.Atoi(hostParts[1])
-		if err != nil {
-			logger.DiscLog.Errorln("Invalid port value: ", err)
-		}
-		logger.DiscLog.Infof("ScpIp: %v,  scpPortInt: %v", ScpIp, scpPortInt)
+	nrfSelf := nrf_context.GetSelf()
+	ScpUri := nrfSelf.ScpUri
+	ScpIp := nrfSelf.ScpIp
+	ScpPortInt := nrfSelf.ScpPortInt
+	ScpHasRegister := nrfSelf.ScpHasRegister
+
+	if ScpUri != "" && supportNFPairForIndirectCommunication && ScpHasRegister {
 		logger.DiscLog.Infof("Discovery with indirect communication, the message will pass to SCP: [%v]", ScpUri)
 		if len(nfProfilesStruct) > 0 {
 			for i := range nfProfilesStruct {
@@ -235,7 +221,7 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 							for k := range *nfService.IpEndPoints {
 								ipEndPoint := &(*nfService.IpEndPoints)[k]
 								ipEndPoint.Ipv4Address = ScpIp
-								ipEndPoint.Port = int32(scpPortInt)
+								ipEndPoint.Port = int32(ScpPortInt)
 							}
 						}
 						// for UDM search

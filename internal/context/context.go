@@ -3,6 +3,7 @@ package context
 import (
 	"crypto/rsa"
 	"crypto/x509"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -29,6 +30,9 @@ type NRFContext struct {
 	NfRegistNum      int
 	nfRegistNumLock  sync.RWMutex
 	ScpUri           string
+	ScpIp            string
+	ScpPortInt       int
+	ScpHasRegister   bool
 }
 
 const (
@@ -48,9 +52,34 @@ func InitNrfContext() error {
 	logger.InitLog.Infof("nrfconfig Info: Version[%s] Description[%s]",
 		config.Info.Version, config.Info.Description)
 	configuration := config.Configuration
+
+	parseFailure := false
 	if configuration.ScpUri != "" {
-		nrfContext.ScpUri = configuration.ScpUri
+		// parse uri to host and port
+		parsedURL, err := url.Parse(configuration.ScpUri)
+		if err != nil {
+			logger.DiscLog.Errorln("Error parsing URL:", err)
+			parseFailure = true
+		}
+		host := parsedURL.Host
+		hostParts := strings.Split(host, ":")
+		if len(hostParts) != 2 {
+			logger.DiscLog.Errorln("Invalid host format, expected IP:PORT")
+			parseFailure = true
+		}
+		nrfContext.ScpIp = hostParts[0]
+		nrfContext.ScpPortInt, err = strconv.Atoi(hostParts[1])
+		if err != nil {
+			logger.DiscLog.Errorln("Invalid port value: ", err)
+			parseFailure = true
+		}
+		if !parseFailure {
+			logger.DiscLog.Infof("ScpIp: %v,  scpPortInt: %v", nrfContext.ScpIp, nrfContext.ScpPortInt)
+			nrfContext.ScpUri = configuration.ScpUri
+		}
+
 	}
+	nrfContext.ScpHasRegister = false
 
 	nrfContext.NrfNfProfile.NfInstanceId = uuid.New().String()
 	nrfContext.NrfNfProfile.NfType = models.NfType_NRF
@@ -230,3 +259,7 @@ func (ctx *NRFContext) DelNfRegister() {
 	defer ctx.nfRegistNumLock.Unlock()
 	ctx.NfRegistNum -= 1
 }
+
+// func (ctx *NRFContext) GetScpIPandPort() (string, int) {
+// 	return ctx.ScpIp, ctx.ScpPortInt
+// }

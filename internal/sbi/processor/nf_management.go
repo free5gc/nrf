@@ -43,6 +43,11 @@ func (p *Processor) HandleNFRegisterRequest(c *gin.Context, nfProfile models.NfP
 	logger.NfmLog.Infoln("Handle NFRegisterRequest")
 
 	p.NFRegisterProcedure(c, nfProfile)
+
+	// Record the SCP has finished register
+	if nfProfile.NfType == "SCP" {
+		nrf_context.GetSelf().ScpHasRegister = true
+	}
 }
 
 func (p *Processor) HandleUpdateNFInstanceRequest(c *gin.Context, patchJSON []byte, nfInstanceID string) {
@@ -290,6 +295,12 @@ func (p *Processor) NFDeregisterProcedure(nfInstanceID string) *models.ProblemDe
 
 	uriList := nrf_context.GetNofificationUri(nfProfiles[0])
 	nfInstanceType := nfProfiles[0].NfType
+
+	// Record deregister SCP
+	if nfInstanceType == "SCP" {
+		nrf_context.GetSelf().ScpHasRegister = false
+	}
+
 	nfInstanceUri := nrf_context.GetNfInstanceURI(nfInstanceID)
 	// set info for NotificationData
 	Notification_event := models.NotificationEventType_DEREGISTERED

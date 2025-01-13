@@ -51,7 +51,7 @@ func (c *Config) Validate() (bool, error) {
 }
 
 type Info struct {
-	Version     string `yaml:"version,omitempty" valid:"required,in(1.0.2)"`
+	Version     string `yaml:"version,omitempty" valid:"required,in(1.0.3)"`
 	Description string `yaml:"description,omitempty" valid:"type(string)"`
 }
 
