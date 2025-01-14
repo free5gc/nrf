@@ -53,10 +53,9 @@ func (p *Processor) HandleNFRegisterRequest(c *gin.Context, nfProfile models.NfP
 		nrfSelf.ScpUri = ScpUri
 		nrfSelf.ScpIp = ScpIp
 		nrfSelf.ScpPortInt = 8000
-		logger.NfmLog.Infof("Recieve SCP register request, ScpUri: %v", ScpUri)
+		logger.NfmLog.Infof("Receive SCP register request, ScpUri: %v", ScpUri)
 	}
 	p.NFRegisterProcedure(c, nfProfile)
-
 }
 
 func (p *Processor) HandleUpdateNFInstanceRequest(c *gin.Context, patchJSON []byte, nfInstanceID string) {
