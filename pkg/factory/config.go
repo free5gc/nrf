@@ -51,7 +51,7 @@ func (c *Config) Validate() (bool, error) {
 }
 
 type Info struct {
-	Version     string `yaml:"version,omitempty" valid:"required,in(1.0.3)"`
+	Version     string `yaml:"version,omitempty" valid:"required,in(1.0.2)"`
 	Description string `yaml:"description,omitempty" valid:"type(string)"`
 }
 
@@ -61,7 +61,6 @@ type Configuration struct {
 	MongoDBUrl      string        `yaml:"MongoDBUrl" valid:"required"`
 	DefaultPlmnId   models.PlmnId `yaml:"DefaultPlmnId" valid:"required"`
 	ServiceNameList []string      `yaml:"serviceNameList,omitempty" valid:"required"`
-	ScpUri          string        `yaml:"scpUri,omitempty"`
 }
 
 type Logger struct {

@@ -24,6 +24,8 @@ import (
 func (p *Processor) HandleNFDeregisterRequest(c *gin.Context, nfInstanceId string) {
 	logger.NfmLog.Infoln("Handle NFDeregisterRequest")
 
+	nrf_context.GetSelf().ModifyScpHasRegister(false)
+
 	problemDetails := p.NFDeregisterProcedure(nfInstanceId)
 
 	if problemDetails != nil {
@@ -40,14 +42,22 @@ func (p *Processor) HandleGetNFInstanceRequest(c *gin.Context, nfInstanceId stri
 }
 
 func (p *Processor) HandleNFRegisterRequest(c *gin.Context, nfProfile models.NfProfile) {
-	logger.NfmLog.Infoln("Handle NFRegisterRequest")
+	logger.NfmLog.Infoln("Handle NFRegisterRequest_hihi")
+	logger.NfmLog.Infof("NfProfile: %v", nfProfile)
 
+	// Set ScpUri for support indirect communication
+	if nfProfile.NfType == models.NfType_SCP {
+		nrfSelf := nrf_context.GetSelf()
+		nrfSelf.ModifyScpHasRegister(true)
+		ScpIp := nfProfile.Ipv4Addresses[0]
+		ScpUri := "http://" + ScpIp + ":8000" // default port
+		nrfSelf.ScpUri = ScpUri
+		nrfSelf.ScpIp = ScpIp
+		nrfSelf.ScpPortInt = 8000
+		logger.NfmLog.Infof("Recieve SCP register request, ScpUri: %v", ScpUri)
+	}
 	p.NFRegisterProcedure(c, nfProfile)
 
-	// Record the SCP has finished register
-	if nfProfile.NfType == "SCP" {
-		nrf_context.GetSelf().ScpHasRegister = true
-	}
 }
 
 func (p *Processor) HandleUpdateNFInstanceRequest(c *gin.Context, patchJSON []byte, nfInstanceID string) {
