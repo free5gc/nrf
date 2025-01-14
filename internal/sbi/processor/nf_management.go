@@ -42,8 +42,7 @@ func (p *Processor) HandleGetNFInstanceRequest(c *gin.Context, nfInstanceId stri
 }
 
 func (p *Processor) HandleNFRegisterRequest(c *gin.Context, nfProfile models.NfProfile) {
-	logger.NfmLog.Infoln("Handle NFRegisterRequest_hihi")
-	logger.NfmLog.Infof("NfProfile: %v", nfProfile)
+	logger.NfmLog.Infoln("Handle NFRegisterRequest")
 
 	// Set ScpUri for support indirect communication
 	if nfProfile.NfType == models.NfType_SCP {
