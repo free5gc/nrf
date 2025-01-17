@@ -50,6 +50,7 @@ func validateQueryParameters(queryParameters url.Values) bool {
 		"BSF":    true,
 		"CHF":    true,
 		"NWDAF":  true,
+		"SCP": true,
 	}
 	var tgt, req string
 	if queryParameters["target-nf-type"] != nil {
@@ -172,6 +173,66 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 		}
 	}
 	validityPeriod := 100
+
+	// Indirect Communication, only the following NF pairs support indirect communication
+	nrfSelf := nrf_context.GetSelf()
+	scpEnable := nrfSelf.ScpHasRegister
+	if scpEnable {
+		supportNFPairForIndirectCommunication := false
+		npPairs := map[string][]string{
+			"AMF":  {"AUSF", "SMF"},
+			"AUSF": {"UDM", "AMF"},
+			"UDM":  {"UDR", "AUSF"},
+			"UDR":  {"UDM", "NEF"},
+			"SMF":  {"AMF"},
+			"NEF":  {"UDR"},
+		}
+		sourceNF := ""
+		targetNF := ""
+		if values, exists := queryParameters["requester-nf-type"]; exists && len(values) > 0 {
+			sourceNF = values[0]
+		}
+		if values, exists := queryParameters["target-nf-type"]; exists && len(values) > 0 {
+			targetNF = values[0]
+		}
+
+		if validTargets, exists := npPairs[sourceNF]; exists {
+			for _, validTarget := range validTargets {
+				if validTarget == targetNF {
+					supportNFPairForIndirectCommunication = true
+				}
+			}
+		}
+		if supportNFPairForIndirectCommunication {
+			logger.DiscLog.Infof(
+				"Discovery with indirect communication, the message will pass to SCP: [%v]",
+				ScpUri
+			)
+			if len(nfProfilesStruct) > 0 {
+				for i := range nfProfilesStruct {
+					nfProfilesStruct[i].Ipv4Addresses[0] = ScpUri
+	
+					if nfProfilesStruct[i].NfServices != nil {
+						for j := range *nfProfilesStruct[i].NfServices {
+							nfService := &(*nfProfilesStruct[i].NfServices)[j]
+	
+							if nfService.IpEndPoints != nil {
+								for k := range *nfService.IpEndPoints {
+									ipEndPoint := &(*nfService.IpEndPoints)[k]
+									ipEndPoint.Ipv4Address = nrfSelf.ScpIp
+									ipEndPoint.Port = nrfSelf.ScpPortInt
+								}
+							}
+							// for UDM search
+							if nfService.ApiPrefix != "" {
+								nfService.ApiPrefix = nrfSelf.ScpUri
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 
 	// Build SearchResult model
 	searchResult := &models.SearchResult{

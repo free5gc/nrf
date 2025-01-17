@@ -42,6 +42,20 @@ func (p *Processor) HandleGetNFInstanceRequest(c *gin.Context, nfInstanceId stri
 func (p *Processor) HandleNFRegisterRequest(c *gin.Context, nfProfile models.NfProfile) {
 	logger.NfmLog.Infoln("Handle NFRegisterRequest")
 
+	logger.NfmLog.Infof("NfProfile: %v", nfProfile)
+	// Set ScpUri for support indirect communication
+	// TODO: Support multiple SCP situation (This version only support for a single SCP)
+	if nfProfile.NfType == models.NfType_SCP {
+		nrfSelf := nrf_context.GetSelf()
+		nrfSelf.ModifyScpHasRegister(true)
+		ScpIp := nfProfile.Ipv4Addresses[0]
+		ScpUri := "http://" + ScpIp + ":8000" // default port
+		nrfSelf.ScpUri = ScpUri
+		nrfSelf.ScpIp = ScpIp
+		nrfSelf.ScpPortInt = 8000
+		logger.NfmLog.Infof("Recieve SCP register request, ScpUri: %v", ScpUri)
+	}
+
 	p.NFRegisterProcedure(c, nfProfile)
 }
 
@@ -319,6 +333,9 @@ func (p *Processor) NFDeregisterProcedure(nfInstanceID string) *models.ProblemDe
 		if removeErr := os.Remove(nfCertPath); removeErr != nil {
 			logger.NfmLog.Warningf("Can not delete NFCertPem file: %v: %v", nfCertPath, removeErr)
 		}
+	}
+	if nfInstanceType == models.NfType_SCP {
+		nrf_context.GetSelf().ModifyScpHasRegister(false)
 	}
 	// Minus NF Register Conter
 	p.Context().DelNfRegister()
