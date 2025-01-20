@@ -50,7 +50,7 @@ func validateQueryParameters(queryParameters url.Values) bool {
 		"BSF":    true,
 		"CHF":    true,
 		"NWDAF":  true,
-		"SCP": true,
+		"SCP":    true,
 	}
 	var tgt, req string
 	if queryParameters["target-nf-type"] != nil {
@@ -206,21 +206,21 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 		if supportNFPairForIndirectCommunication {
 			logger.DiscLog.Infof(
 				"Discovery with indirect communication, the message will pass to SCP: [%v]",
-				ScpUri
+				nrfSelf.ScpUri,
 			)
 			if len(nfProfilesStruct) > 0 {
 				for i := range nfProfilesStruct {
-					nfProfilesStruct[i].Ipv4Addresses[0] = ScpUri
-	
+					nfProfilesStruct[i].Ipv4Addresses[0] = nrfSelf.ScpUri
+
 					if nfProfilesStruct[i].NfServices != nil {
 						for j := range *nfProfilesStruct[i].NfServices {
 							nfService := &(*nfProfilesStruct[i].NfServices)[j]
-	
+
 							if nfService.IpEndPoints != nil {
 								for k := range *nfService.IpEndPoints {
 									ipEndPoint := &(*nfService.IpEndPoints)[k]
 									ipEndPoint.Ipv4Address = nrfSelf.ScpIp
-									ipEndPoint.Port = nrfSelf.ScpPortInt
+									ipEndPoint.Port = int32(nrfSelf.ScpPortInt)
 								}
 							}
 							// for UDM search
