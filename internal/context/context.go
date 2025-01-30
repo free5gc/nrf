@@ -28,11 +28,11 @@ type NRFContext struct {
 	NrfCert          *x509.Certificate
 	NfRegistNum      int
 	nfRegistNumLock  sync.RWMutex
-	ScpUri string
+	ScpUri           string
 	ScpIp            string
 	ScpPortInt       int
 	ScpHasRegister   bool
-	ScpRegisterLock sync.RWMutex
+	ScpInfoLock      sync.RWMutex
 }
 
 const (
@@ -53,7 +53,7 @@ func InitNrfContext() error {
 		config.Info.Version, config.Info.Description)
 	configuration := config.Configuration
 
-	nrfContext.ModifyScpHasRegister(false)
+	nrfContext.ModifyScpIpInfo(false, "", "", -1) // Initiation for SCP info
 	nrfContext.NrfNfProfile.NfInstanceId = uuid.New().String()
 	nrfContext.NrfNfProfile.NfType = models.NfType_NRF
 	nrfContext.NrfNfProfile.NfStatus = models.NfStatus_REGISTERED
@@ -233,8 +233,11 @@ func (ctx *NRFContext) DelNfRegister() {
 	ctx.NfRegistNum -= 1
 }
 
-func (ctx *NRFContext) ModifyScpHasRegister(value bool) {
-	ctx.nfRegistNumLock.Lock()
-	defer ctx.nfRegistNumLock.Unlock()
-	ctx.ScpHasRegister = value
+func (ctx *NRFContext) ModifyScpIpInfo(hasRegister bool, uri string, ip string, port int) {
+	ctx.ScpInfoLock.Lock()
+	defer ctx.ScpInfoLock.Unlock()
+	ctx.ScpHasRegister = hasRegister
+	ctx.ScpUri = uri
+	ctx.ScpIp = ip
+	ctx.ScpPortInt = port
 }

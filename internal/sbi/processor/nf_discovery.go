@@ -174,18 +174,19 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 	}
 	validityPeriod := 100
 
-	// Indirect Communication, only the following NF pairs support indirect communication
+	// Indirect communication implementation
 	nrfSelf := nrf_context.GetSelf()
 	scpEnable := nrfSelf.ScpHasRegister
 	if scpEnable {
 		supportNFPairForIndirectCommunication := false
-		npPairs := map[string][]string{
-			"AMF":  {"AUSF", "SMF"},
-			"AUSF": {"UDM", "AMF"},
-			"UDM":  {"UDR", "AUSF"},
-			"UDR":  {"UDM", "NEF"},
-			"SMF":  {"AMF"},
-			"NEF":  {"UDR"},
+		// Only the following NF pairs support indirect communication
+		nfPairs := map[string][]string{
+			"AMF":  {"AUSF", "SMF"}, // AMF consumes AUSF, SMF (via SCP)
+			"AUSF": {"UDM", "AMF"},  // AUSF consumes UDM, AMF
+			"UDM":  {"UDR", "AUSF"}, // UDM consumes UDR, AUSF
+			"UDR":  {"UDM", "NEF"},  // UDR consumes UDM, NEF
+			"SMF":  {"AMF"},         // SMF consumes AMF
+			"NEF":  {"UDR"},         // NEF consumes UDR
 		}
 		sourceNF := ""
 		targetNF := ""
@@ -196,7 +197,7 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 			targetNF = values[0]
 		}
 
-		if validTargets, exists := npPairs[sourceNF]; exists {
+		if validTargets, exists := nfPairs[sourceNF]; exists {
 			for _, validTarget := range validTargets {
 				if validTarget == targetNF {
 					supportNFPairForIndirectCommunication = true
