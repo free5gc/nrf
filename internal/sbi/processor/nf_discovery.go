@@ -50,6 +50,7 @@ func validateQueryParameters(queryParameters url.Values) bool {
 		"BSF":    true,
 		"CHF":    true,
 		"NWDAF":  true,
+		"SCP":    true,
 	}
 	var tgt, req string
 	if queryParameters["target-nf-type"] != nil {
@@ -172,6 +173,67 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 		}
 	}
 	validityPeriod := 100
+
+	// Indirect communication implementation
+	nrfSelf := nrf_context.GetSelf()
+	scpEnable := nrfSelf.ScpHasRegister
+	if scpEnable {
+		supportNFPairForIndirectCommunication := false
+		// Only the following NF pairs support indirect communication
+		nfPairs := map[string][]string{
+			"AMF":  {"AUSF", "SMF"}, // AMF consumes AUSF, SMF (via SCP)
+			"AUSF": {"UDM", "AMF"},  // AUSF consumes UDM, AMF
+			"UDM":  {"UDR", "AUSF"}, // UDM consumes UDR, AUSF
+			"UDR":  {"UDM", "NEF"},  // UDR consumes UDM, NEF
+			"SMF":  {"AMF"},         // SMF consumes AMF
+			"NEF":  {"UDR"},         // NEF consumes UDR
+		}
+		sourceNF := ""
+		targetNF := ""
+		if values, exists := queryParameters["requester-nf-type"]; exists && len(values) > 0 {
+			sourceNF = values[0]
+		}
+		if values, exists := queryParameters["target-nf-type"]; exists && len(values) > 0 {
+			targetNF = values[0]
+		}
+
+		if validTargets, exists := nfPairs[sourceNF]; exists {
+			for _, validTarget := range validTargets {
+				if validTarget == targetNF {
+					supportNFPairForIndirectCommunication = true
+				}
+			}
+		}
+		if supportNFPairForIndirectCommunication {
+			logger.DiscLog.Infof(
+				"Discovery with indirect communication, the message will pass to SCP: [%v]",
+				nrfSelf.ScpUri,
+			)
+			if len(nfProfilesStruct) > 0 {
+				for i := range nfProfilesStruct {
+					nfProfilesStruct[i].Ipv4Addresses[0] = nrfSelf.ScpUri
+
+					if nfProfilesStruct[i].NfServices != nil {
+						for j := range *nfProfilesStruct[i].NfServices {
+							nfService := &(*nfProfilesStruct[i].NfServices)[j]
+
+							if nfService.IpEndPoints != nil {
+								for k := range *nfService.IpEndPoints {
+									ipEndPoint := &(*nfService.IpEndPoints)[k]
+									ipEndPoint.Ipv4Address = nrfSelf.ScpIp
+									ipEndPoint.Port = int32(nrfSelf.ScpPortInt)
+								}
+							}
+							// for UDM search
+							if nfService.ApiPrefix != "" {
+								nfService.ApiPrefix = nrfSelf.ScpUri
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 
 	// Build SearchResult model
 	searchResult := &models.SearchResult{

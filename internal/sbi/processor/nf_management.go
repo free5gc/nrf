@@ -320,6 +320,10 @@ func (p *Processor) NFDeregisterProcedure(nfInstanceID string) *models.ProblemDe
 			logger.NfmLog.Warningf("Can not delete NFCertPem file: %v: %v", nfCertPath, removeErr)
 		}
 	}
+	// Set SCP to unable
+	if nfInstanceType == models.NfType_SCP {
+		nrf_context.GetSelf().ModifyScpIpInfo(false, "", "", -1)
+	}
 	// Minus NF Register Conter
 	p.Context().DelNfRegister()
 	logger.NfmLog.Infof("NfDeregister Success: %v [%v]", nfInstanceType, nfInstanceID)
@@ -469,6 +473,22 @@ func (p *Processor) NFRegisterProcedure(
 			}
 		}
 
+		// Set scp uri for support indirect communication
+		// TODO: Support multiple SCP situation (This version only support for a single SCP)
+		if nfProfile.NfType == models.NfType_SCP && len(nfProfile.Ipv4Addresses) > 0 {
+			if len(nfProfile.Ipv4Addresses[0]) > 0 {
+				nrfSelf := nrf_context.GetSelf()
+				ScpIp := nfProfile.Ipv4Addresses[0]
+				ScpUri := "http://" + ScpIp + ":8000" // default port
+				nrfSelf.ModifyScpIpInfo(true, ScpUri, ScpIp, 8000)
+				logger.NfmLog.Infof("Update ScpUri: %v", ScpUri)
+			} else {
+				logger.NfmLog.Warnln("SCP registration request received but missing IP address.")
+			}
+		} else {
+			logger.NfmLog.Warnln("SCP registration request received but missing IP address.")
+		}
+
 		c.Writer.Header().Add("Location", locationHeaderValue)
 		c.JSON(http.StatusOK, putData)
 		return
@@ -489,6 +509,23 @@ func (p *Processor) NFRegisterProcedure(
 				return
 			}
 		}
+
+		// Set SCP uri for support indirect communication
+		// TODO: Support multiple SCP situation (This version only support for a single SCP)
+		if nfProfile.NfType == models.NfType_SCP && len(nfProfile.Ipv4Addresses) > 0 {
+			if len(nfProfile.Ipv4Addresses[0]) > 0 {
+				nrfSelf := nrf_context.GetSelf()
+				ScpIp := nfProfile.Ipv4Addresses[0]
+				ScpUri := "http://" + ScpIp + ":8000" // default port
+				nrfSelf.ModifyScpIpInfo(true, ScpUri, ScpIp, 8000)
+				logger.NfmLog.Infof("Receive SCP register request, ScpUri: %v", ScpUri)
+			} else {
+				logger.NfmLog.Warnln("SCP registration request received but missing IP address.")
+			}
+		} else {
+			logger.NfmLog.Warnln("SCP registration request received but missing IP address.")
+		}
+
 		c.Writer.Header().Add("Location", locationHeaderValue)
 
 		if factory.NrfConfig.GetOAuth() {
