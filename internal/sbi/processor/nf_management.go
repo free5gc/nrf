@@ -296,7 +296,7 @@ func (p *Processor) NFDeregisterProcedure(nfInstanceID string) *models.ProblemDe
 	Notification_event := models.NotificationEventType_DEREGISTERED
 
 	for _, uri := range uriList {
-		problemDetails := p.Consumer().SendNFStatusNotify(context.Background(), Notification_event, nfInstanceUri, uri, nil)
+		problemDetails := p.Consumer().SendNFStatusNotify(context.Background(), Notification_event, nfInstanceUri, uri, &nfProfiles[0])
 		if problemDetails != nil {
 			return problemDetails
 		}

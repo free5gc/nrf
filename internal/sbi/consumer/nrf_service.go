@@ -74,7 +74,7 @@ func (s *nnrfService) SendNFStatusNotify(
 	}
 
 	_, err := client.SubscriptionsCollectionApi.CreateSubscriptionOnNFStatusEventPost(
-		ctx, nfInstanceUri, request)
+		ctx, url, request)
 	if err != nil {
 		logger.NfmLog.Infof("Notify fail: %v", err)
 		problemDetails := &models.ProblemDetails{

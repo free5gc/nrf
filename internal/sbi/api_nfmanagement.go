@@ -59,6 +59,12 @@ func (s *Server) getNfManagementRoute() []Route {
 			"/nf-instances/:nfInstanceID",
 			s.HTTPGetNFInstance,
 		},
+		{
+			"GetNFInstance",
+			http.MethodPost,
+			"/nf-instances/:nfInstanceID",
+			s.HTTPGetNFInstance,
+		},
 		// Have another router group without Middlerware OAuth Check
 		// {
 		// 	"RegisterNFInstance",

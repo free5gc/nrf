@@ -505,17 +505,13 @@ func GetNofificationUri(nfProfile *models.NrfNfManagementNfProfile) []string {
 
 	// nfTypeCond
 	nfTypeCond := bson.M{
-		"subscrCond": bson.M{
-			"nfType": nfProfile.NfType,
-		},
+		"subscrCond.nfType": nfProfile.NfType,
 	}
 	setUriListByFilter(nfTypeCond, &uriList)
 
 	// NfInstanceIdCond
 	nfInstanceIDCond := bson.M{
-		"subscrCond": bson.M{
-			"nfInstanceId": nfProfile.NfInstanceId,
-		},
+		"subscrCond.nfInstanceId": nfProfile.NfInstanceId,
 	}
 	setUriListByFilter(nfInstanceIDCond, &uriList)
 
