@@ -7,7 +7,6 @@ package factory
 import (
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -25,7 +24,7 @@ const (
 	NrfDefaultRootCertPemPath    = "./cert/root.pem"
 	NrfDefaultRootPrivateKeyPath = "./cert/root.key"
 	NrfDefaultConfigPath         = "./config/nrfcfg.yaml"
-	NrfSbiDefaultIPv4            = "127.0.0.10"
+	NrfSbiDefaultIP              = "127.0.0.10"
 	NrfSbiDefaultPort            = 8000
 	NrfSbiDefaultScheme          = "https"
 	NrfMetricsDefaultEnabled     = false
@@ -126,20 +125,50 @@ func (c *Configuration) validate() (bool, error) {
 }
 
 type Sbi struct {
-	Scheme       string `yaml:"scheme" valid:"scheme,required"`
+	Scheme       string `yaml:"scheme" valid:"in(http|https),optional"`
 	RegisterIPv4 string `yaml:"registerIPv4,omitempty" valid:"host,optional"`
-	// IP that is serviced or registered at another NRF.
-	// IPv6Addr  string `yaml:"ipv6Addr,omitempty"`
-	BindingIPv4 string `yaml:"bindingIPv4,omitempty" valid:"host,required"` // IP used to run the server in the node.
-	Port        int    `yaml:"port,omitempty" valid:"port,optional"`
-	Cert        *Cert  `yaml:"cert,omitempty" valid:"optional"`
-	RootCert    *Cert  `yaml:"rootcert,omitempty" valid:"optional"`
-	OAuth       bool   `yaml:"oauth,omitempty" valid:"optional"`
+	RegisterIP   string `yaml:"registerIP,omitempty" valid:"host,optional"`
+	BindingIPv4  string `yaml:"bindingIPv4,omitempty" valid:"host,optional"`
+	BindingIP    string `yaml:"bindingIP,omitempty" valid:"host,optional"`
+	Port         int    `yaml:"port,omitempty" valid:"port,optional"`
+	Cert         *Cert  `yaml:"cert,omitempty" valid:"optional"`
+	RootCert     *Cert  `yaml:"rootcert,omitempty" valid:"optional"`
+	OAuth        bool   `yaml:"oauth,omitempty" valid:"optional"`
 }
 
 func (s *Sbi) validate() (bool, error) {
-	result, err := govalidator.ValidateStruct(s)
-	return result, appendInvalid(err)
+	// Set a default Schme if the Configuration does not provides one
+	if s.Scheme == "" {
+		s.Scheme = NrfSbiDefaultScheme
+	}
+
+	// Set BindingIP/RegisterIP from deprecated BindingIPv4/RegisterIPv4
+	if s.BindingIP == "" && s.BindingIPv4 != "" {
+		s.BindingIP = s.BindingIPv4
+	}
+	if s.RegisterIP == "" && s.RegisterIPv4 != "" {
+		s.RegisterIP = s.RegisterIPv4
+	}
+
+	// Set a default BindingIP/RegisterIP if the Configuration does not provides them
+	if s.BindingIP == "" && s.RegisterIP == "" {
+		s.BindingIP = NrfSbiDefaultIP
+		s.RegisterIP = NrfSbiDefaultIP
+	} else {
+		// Complete any missing BindingIP/RegisterIP from RegisterIP/BindingIP
+		if s.BindingIP == "" {
+			s.BindingIP = s.RegisterIP
+		} else if s.RegisterIP == "" {
+			s.RegisterIP = s.BindingIP
+		}
+	}
+
+	// Set a default Port if the Configuration does not provides one
+	if s.Port == 0 {
+		s.Port = NrfSbiDefaultPort
+	}
+
+	return govalidator.ValidateStruct(s)
 }
 
 type Metrics struct {
@@ -297,50 +326,6 @@ func (c *Config) GetSbiPort() int {
 		return c.Configuration.Sbi.Port
 	}
 	return NrfSbiDefaultPort
-}
-
-func (c *Config) GetSbiBindingIP() string {
-	c.RLock()
-	defer c.RUnlock()
-	bindIP := "0.0.0.0"
-	if c.Configuration == nil || c.Configuration.Sbi == nil {
-		return bindIP
-	}
-	if c.Configuration.Sbi.BindingIPv4 != "" {
-		if bindIP = os.Getenv(c.Configuration.Sbi.BindingIPv4); bindIP != "" {
-			logger.CfgLog.Infof("Parsing ServerIPv4 [%s] from ENV Variable", bindIP)
-		} else {
-			bindIP = c.Configuration.Sbi.BindingIPv4
-		}
-	}
-	return bindIP
-}
-
-func (c *Config) GetSbiBindingAddr() string {
-	c.RLock()
-	defer c.RUnlock()
-	return c.GetSbiBindingIP() + ":" + strconv.Itoa(c.GetSbiPort())
-}
-
-func (c *Config) GetSbiRegisterIP() string {
-	c.RLock()
-	defer c.RUnlock()
-	if c.Configuration != nil && c.Configuration.Sbi != nil && c.Configuration.Sbi.RegisterIPv4 != "" {
-		return c.Configuration.Sbi.RegisterIPv4
-	}
-	return NrfSbiDefaultIPv4
-}
-
-func (c *Config) GetSbiRegisterAddr() string {
-	c.RLock()
-	defer c.RUnlock()
-	return c.GetSbiRegisterIP() + ":" + strconv.Itoa(c.GetSbiPort())
-}
-
-func (c *Config) GetSbiUri() string {
-	c.RLock()
-	defer c.RUnlock()
-	return c.GetSbiScheme() + "://" + c.GetSbiRegisterAddr()
 }
 
 func (c *Config) GetOAuth() bool {

@@ -397,7 +397,8 @@ func nnrfNFManagementOption(nf *models.NrfNfManagementNfProfile, nfprofile *mode
 }
 
 func GetNfInstanceURI(nfInstID string) string {
-	return factory.NrfConfig.GetSbiUri() + NRF_NFINST_RES_URI_PREFIX + nfInstID
+	url := GetSelf().GetIPUri()
+	return url + NRF_NFINST_RES_URI_PREFIX + nfInstID
 }
 
 func SetLocationHeader(nfprofile *models.NrfNfManagementNfProfile) string {
