@@ -3,6 +3,7 @@ package sbi
 import (
 	"context"
 	"fmt"
+	"github.com/free5gc/util/metrics"
 	"net"
 	"net/http"
 	"runtime/debug"
@@ -40,6 +41,7 @@ func NewServer(nrf ServerNrf, tlsKeyLogPath string) (*Server, error) {
 		ServerNrf: nrf,
 		router:    logger_util.NewGinWithLogrus(logger.GinLog),
 	}
+	s.router.Use(metrics.InboundMetrics())
 	cfg := s.Config()
 	bindAddr := cfg.GetSbiBindingAddr()
 	logger.SBILog.Infof("Binding addr: [%s]", bindAddr)

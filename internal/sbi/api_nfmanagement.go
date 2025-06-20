@@ -11,6 +11,7 @@ package sbi
 
 import (
 	"fmt"
+	"github.com/free5gc/util/metrics/sbi"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -176,6 +177,7 @@ func (s *Server) HTTPUpdateNFInstance(c *gin.Context) {
 			Cause:  "SYSTEM_FAILURE",
 		}
 		logger.NfmLog.Errorf("Get Request Body error: %+v", err)
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, problemDetail.Cause)
 		c.JSON(http.StatusInternalServerError, problemDetail)
 		return
 	}
@@ -288,6 +290,7 @@ func (s *Server) HTTPCreateSubscription(c *gin.Context) {
 			Cause:  "SYSTEM_FAILURE",
 		}
 		logger.NfmLog.Errorf("Get Request Body error: %+v", err)
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, problemDetail.Cause)
 		c.JSON(http.StatusInternalServerError, problemDetail)
 		return
 	}
@@ -302,6 +305,7 @@ func (s *Server) HTTPCreateSubscription(c *gin.Context) {
 			Detail: problemDetail,
 		}
 		logger.NfmLog.Errorln(problemDetail)
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, problemDetail)
 		c.JSON(http.StatusBadRequest, rsp)
 		return
 	}
