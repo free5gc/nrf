@@ -2,6 +2,7 @@ package processor
 
 import (
 	"crypto/x509"
+	"github.com/free5gc/util/metrics/sbi"
 	"net/http"
 	"strings"
 	"time"
@@ -26,6 +27,7 @@ func (p *Processor) HandleAccessTokenRequest(c *gin.Context, accessTokenReq mode
 
 	response, errResponse := p.AccessTokenProcedure(accessTokenReq)
 	if errResponse != nil {
+		c.Set(sbi.IN_PB_DETAILS_CTX_STR, errResponse.Error)
 		c.JSON(http.StatusBadRequest, errResponse)
 		return
 	} else if response != nil {
