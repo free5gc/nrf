@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/netip"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -42,8 +43,15 @@ func NewServer(nrf ServerNrf, tlsKeyLogPath string) (*Server, error) {
 		router:    logger_util.NewGinWithLogrus(logger.GinLog),
 	}
 	s.router.Use(metrics.InboundMetrics())
-	cfg := s.Config()
-	bindAddr := cfg.GetSbiBindingAddr()
+
+	// cfg := s.Config()
+
+	addr := s.Context().RegisterIP
+	port := uint16(s.Context().SBIPort)
+
+	bind := netip.AddrPortFrom(addr, port).String()
+	bindAddr := fmt.Sprintf("%s", bind)
+
 	logger.SBILog.Infof("Binding addr: [%s]", bindAddr)
 
 	s.applyService()
