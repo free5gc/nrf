@@ -50,14 +50,13 @@ func NewServer(nrf ServerNrf, tlsKeyLogPath string) (*Server, error) {
 	port := uint16(s.Context().SBIPort)
 
 	bind := netip.AddrPortFrom(addr, port).String()
-	bindAddr := fmt.Sprintf("%s", bind)
 
-	logger.SBILog.Infof("Binding addr: [%s]", bindAddr)
+	logger.SBILog.Infof("Binding addr: [%s]", bind)
 
 	s.applyService()
 
 	var err error
-	if s.httpServer, err = httpwrapper.NewHttp2Server(bindAddr, tlsKeyLogPath, s.router); err != nil {
+	if s.httpServer, err = httpwrapper.NewHttp2Server(bind, tlsKeyLogPath, s.router); err != nil {
 		logger.InitLog.Errorf("Initialize HTTP server failed: %v", err)
 		return nil, err
 	}
