@@ -1,8 +1,12 @@
 package context
 
 import (
+	"context"
 	"crypto/rsa"
 	"crypto/x509"
+	"fmt"
+	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -21,6 +25,10 @@ import (
 type NRFContext struct {
 	NrfNfProfile     models.NrfNfManagementNfProfile
 	Nrf_NfInstanceID string
+	UriScheme        models.UriScheme
+	BindingIP        netip.Addr
+	RegisterIP       netip.Addr
+	SBIPort          int
 	RootPrivKey      *rsa.PrivateKey
 	RootCert         *x509.Certificate
 	NrfPrivKey       *rsa.PrivateKey
@@ -47,11 +55,26 @@ func InitNrfContext() error {
 	logger.InitLog.Infof("nrfconfig Info: Version[%s] Description[%s]",
 		config.Info.Version, config.Info.Description)
 	configuration := config.Configuration
+	sbi := configuration.Sbi
 
 	nrfContext.NrfNfProfile.NfInstanceId = uuid.New().String()
 	nrfContext.NrfNfProfile.NfType = models.NrfNfManagementNfType_NRF
 	nrfContext.NrfNfProfile.NfStatus = models.NrfNfManagementNfStatus_REGISTERED
 	nrfContext.NfRegistNum = 0
+
+	nrfContext.SBIPort = sbi.Port
+	nrfContext.UriScheme = models.UriScheme(sbi.Scheme)
+
+	if bindingIP := os.Getenv(sbi.BindingIP); bindingIP != "" {
+		logger.UtilLog.Info("Parsing BindingIP address from ENV Variable.")
+		sbi.BindingIP = bindingIP
+	}
+	if registerIP := os.Getenv(sbi.RegisterIP); registerIP != "" {
+		logger.UtilLog.Info("Parsing RegisterIP address from ENV Variable.")
+		sbi.RegisterIP = registerIP
+	}
+	nrfContext.BindingIP = resolveIP(sbi.BindingIP)
+	nrfContext.RegisterIP = resolveIP(sbi.RegisterIP)
 
 	serviceNameList := configuration.ServiceNameList
 
@@ -106,12 +129,52 @@ func InitNrfContext() error {
 		}
 	}
 
-	NFServices := InitNFService(serviceNameList, config.Info.Version)
+	NFServices := nrfContext.InitNFService(serviceNameList, config.Info.Version)
 	nrfContext.NrfNfProfile.NfServices = NFServices
 	return nil
 }
 
-func InitNFService(srvNameList []string, version string) []models.NrfNfManagementNfService {
+func resolveIP(ip string) netip.Addr {
+	resolvedIPs, err := net.DefaultResolver.LookupNetIP(context.Background(), "ip", ip)
+	if err != nil {
+		logger.InitLog.Errorf("Lookup failed with %s: %+v", ip, err)
+	}
+	resolvedIP := resolvedIPs[0].Unmap()
+	if resolvedIP := resolvedIP.String(); resolvedIP != ip {
+		logger.UtilLog.Infof("Lookup revolved %s into %s", ip, resolvedIP)
+	}
+	return resolvedIP
+}
+
+func (context *NRFContext) GetIPUri() string {
+	addr := context.RegisterIP
+	port := context.SBIPort
+
+	return fmt.Sprintf("%s://%s", context.UriScheme, netip.AddrPortFrom(addr, uint16(port)).String())
+}
+
+func (context *NRFContext) GetIpEndPoint() []models.IpEndPoint {
+	if context.RegisterIP.Is6() {
+		return []models.IpEndPoint{
+			{
+				Ipv6Address: context.RegisterIP.String(),
+				Transport:   models.NrfNfManagementTransportProtocol_TCP,
+				Port:        int32(context.SBIPort),
+			},
+		}
+	} else if context.RegisterIP.Is4() {
+		return []models.IpEndPoint{
+			{
+				Ipv4Address: context.RegisterIP.String(),
+				Transport:   models.NrfNfManagementTransportProtocol_TCP,
+				Port:        int32(context.SBIPort),
+			},
+		}
+	}
+	return nil
+}
+
+func (context *NRFContext) InitNFService(srvNameList []string, version string) []models.NrfNfManagementNfService {
 	tmpVersion := strings.Split(version, ".")
 	versionUri := "v" + tmpVersion[0]
 	NFServices := make([]models.NrfNfManagementNfService, len(srvNameList))
@@ -126,16 +189,10 @@ func InitNFService(srvNameList []string, version string) []models.NrfNfManagemen
 					ApiVersionInUri: versionUri,
 				},
 			},
-			Scheme:          models.UriScheme(factory.NrfConfig.GetSbiScheme()),
+			Scheme:          context.UriScheme,
 			NfServiceStatus: models.NfServiceStatus_REGISTERED,
-			ApiPrefix:       factory.NrfConfig.GetSbiUri(),
-			IpEndPoints: []models.IpEndPoint{
-				{
-					Ipv4Address: factory.NrfConfig.GetSbiRegisterIP(),
-					Transport:   models.NrfNfManagementTransportProtocol_TCP,
-					Port:        int32(factory.NrfConfig.GetSbiPort()),
-				},
-			},
+			ApiPrefix:       context.GetIPUri(),
+			IpEndPoints:     context.GetIpEndPoint(),
 		}
 	}
 	return NFServices
