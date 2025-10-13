@@ -30,7 +30,7 @@ func (p *Processor) HandleNFDeregisterRequest(c *gin.Context, nfInstanceId strin
 	if problemDetails != nil {
 		util.GinProblemJson(c, problemDetails)
 	} else {
-		c.JSON(http.StatusNoContent, nil)
+		c.Status(http.StatusNoContent)
 	}
 }
 
@@ -51,7 +51,7 @@ func (p *Processor) HandleUpdateNFInstanceRequest(c *gin.Context, patchJSON []by
 
 	response := p.UpdateNFInstanceProcedure(nfInstanceID, patchJSON)
 	if response == nil {
-		c.JSON(http.StatusNoContent, nil)
+		c.Status(http.StatusNoContent)
 		return
 	}
 	c.JSON(http.StatusOK, response)
@@ -83,7 +83,7 @@ func (p *Processor) HandleRemoveSubscriptionRequest(c *gin.Context, subscription
 
 	p.RemoveSubscriptionProcedure(subscriptionID)
 
-	c.JSON(http.StatusNoContent, nil)
+	c.Status(http.StatusNoContent)
 }
 
 func (p *Processor) HandleUpdateSubscriptionRequest(
@@ -95,7 +95,7 @@ func (p *Processor) HandleUpdateSubscriptionRequest(
 
 	response := p.UpdateSubscriptionProcedure(subscriptionID, patchJSON)
 	if response == nil {
-		c.JSON(http.StatusNoContent, nil)
+		c.Status(http.StatusNoContent)
 		return
 	}
 	c.JSON(http.StatusOK, response)
