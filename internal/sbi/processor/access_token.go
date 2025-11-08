@@ -218,18 +218,15 @@ func (p *Processor) AccessTokenScopeCheck(req models.NrfAccessTokenAccessTokenRe
 		found := false
 		for _, nfService := range nfServices {
 			if string(nfService.ServiceName) == reqNfService {
-				if len(nfService.AllowedNfTypes) == 0 {
-					found = true
-					break
-				} else {
+				if len(nfService.AllowedNfTypes) > 0 {
 					for _, nfType := range nfService.AllowedNfTypes {
 						if string(nfType) == reqNfType {
 							found = true
 							break
 						}
 					}
-					break
 				}
+				break
 			}
 		}
 		if !found {
