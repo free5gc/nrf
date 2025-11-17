@@ -42,6 +42,12 @@ var _ NFContext = &NRFContext{}
 
 var nrfContext NRFContext
 
+// NRF's legally provided service names.
+var NrfValidScopes = []string{
+	"nnrf-nfm",
+	"nnrf-disc",
+}
+
 func InitNrfContext() error {
 	config := factory.NrfConfig
 	logger.InitLog.Infof("nrfconfig Info: Version[%s] Description[%s]",

@@ -188,17 +188,22 @@ func (p *Processor) AccessTokenScopeCheck(req models.NrfAccessTokenAccessTokenRe
 			return nil
 		}
 
-		validScopes := map[string]bool{
-			"nnrf-nfm":  true, // NF Management service
-			"nnrf-disc": true, // NF Discovery service
-		}
-
 		scopes := strings.Split(req.Scope, " ")
+
 		for _, requestedScope := range scopes {
-			if _, isValid := validScopes[requestedScope]; !isValid {
+			found := false
+
+			for _, validScope := range nrf_context.NrfValidScopes {
+				if requestedScope == validScope {
+					found = true
+					break
+				}
+			}
+
+			if !found {
 				logger.AccTokenLog.Errorln("Request out of scope for NRF target (" + requestedScope + ")")
 				return &models.AccessTokenErr{
-					Error: "invalid_scope", //Reject the illegal scope
+					Error: "invalid_scope", // Reject the illegal scope
 				}
 			}
 		}
