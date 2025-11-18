@@ -190,7 +190,7 @@ func (p *Processor) AccessTokenScopeCheck(req models.NrfAccessTokenAccessTokenRe
 
 		scopes := strings.Split(req.Scope, " ")
 
-		var nrfValidScopes = []string{
+		nrfValidScopes := []string{
 			string(models.ServiceName_NNRF_NFM),
 			string(models.ServiceName_NNRF_DISC),
 		}
