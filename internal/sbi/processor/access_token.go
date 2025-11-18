@@ -190,10 +190,15 @@ func (p *Processor) AccessTokenScopeCheck(req models.NrfAccessTokenAccessTokenRe
 
 		scopes := strings.Split(req.Scope, " ")
 
+		var nrfValidScopes = []string{
+			string(models.ServiceName_NNRF_NFM),
+			string(models.ServiceName_NNRF_DISC),
+		}
+
 		for _, requestedScope := range scopes {
 			found := false
 
-			for _, validScope := range nrf_context.NrfValidScopes {
+			for _, validScope := range nrfValidScopes {
 				if requestedScope == validScope {
 					found = true
 					break
