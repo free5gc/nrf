@@ -184,8 +184,35 @@ func (p *Processor) AccessTokenScopeCheck(req models.NrfAccessTokenAccessTokenRe
 
 	// Check scope
 	if reqTargetNfType == "NRF" {
+		if req.Scope == "" {
+			return nil
+		}
+
+		scopes := strings.Split(req.Scope, " ")
+
+		nrfValidScopes := factory.NrfConfig.GetServiceNameList()
+
+		for _, requestedScope := range scopes {
+			found := false
+
+			for _, validScope := range nrfValidScopes {
+				if requestedScope == validScope {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				logger.AccTokenLog.Errorln("Request out of scope for NRF target (" + requestedScope + ")")
+				return &models.AccessTokenErr{
+					Error: "invalid_scope", // Reject the illegal scope
+				}
+			}
+		}
+		// If all requested scopes are valid NRF service names, return success.
 		return nil
 	}
+
 	filter = bson.M{"nfType": reqTargetNfType}
 	producerNfInfo, err := mongoapi.RestfulAPIGetOne(collName, filter)
 	if err != nil {
