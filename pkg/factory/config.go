@@ -505,3 +505,9 @@ func (c *Config) GetMetricsNamespace() string {
 	}
 	return NrfMetricsDefaultNamespace
 }
+
+func (c *Config) GetServiceNameList() []string {
+	c.RLock()
+	defer c.RUnlock()
+	return c.Configuration.ServiceNameList
+}
