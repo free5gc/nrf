@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
 	"github.com/free5gc/nrf/internal/logger"
@@ -48,7 +47,7 @@ func InitNrfContext() error {
 		config.Info.Version, config.Info.Description)
 	configuration := config.Configuration
 
-	nrfContext.NrfNfProfile.NfInstanceId = uuid.New().String()
+	nrfContext.NrfNfProfile.NfInstanceId = config.GetNfInstanceId()
 	nrfContext.NrfNfProfile.NfType = models.NrfNfManagementNfType_NRF
 	nrfContext.NrfNfProfile.NfStatus = models.NrfNfManagementNfStatus_REGISTERED
 	nrfContext.NfRegistNum = 0
