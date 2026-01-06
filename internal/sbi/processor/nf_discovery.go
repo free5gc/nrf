@@ -18,6 +18,7 @@ import (
 	"github.com/free5gc/openapi/models"
 	timedecode "github.com/free5gc/util/mapstruct"
 	"github.com/free5gc/util/mongoapi"
+	"github.com/free5gc/util/validator"
 )
 
 func (p *Processor) HandleNFDiscoveryRequest(c *gin.Context, queryParameters url.Values) {
@@ -65,6 +66,20 @@ func validateQueryParameters(queryParameters url.Values) bool {
 
 	if queryParameters["supi"] != nil {
 		if !strings.Contains(queryParameters["supi"][0], "imsi-") {
+			return false
+		}
+	}
+
+	if queryParameters["gpsi"] != nil {
+		gpsi := queryParameters["gpsi"][0]
+		if !validator.IsValidGpsi(gpsi) {
+			return false
+		}
+	}
+
+	if queryParameters["snssais"] != nil {
+		snssais := queryParameters["snssais"][0]
+		if len(snssais) < 2 || snssais[0] != '[' || snssais[len(snssais)-1] != ']' {
 			return false
 		}
 	}
