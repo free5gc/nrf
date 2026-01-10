@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/asaskevich/govalidator"
+	"github.com/google/uuid"
 
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/openapi/models"
@@ -25,6 +26,7 @@ const (
 	NrfDefaultRootCertPemPath    = "./cert/root.pem"
 	NrfDefaultRootPrivateKeyPath = "./cert/root.key"
 	NrfDefaultConfigPath         = "./config/nrfcfg.yaml"
+	NrfDefaultNfInstanceIdEnvVar = "NRF_NF_INSTANCE_ID"
 	NrfSbiDefaultIPv4            = "127.0.0.10"
 	NrfSbiDefaultPort            = 8000
 	NrfSbiDefaultScheme          = "https"
@@ -65,6 +67,7 @@ type Info struct {
 }
 
 type Configuration struct {
+	NfInstanceId    string        `yaml:"nfInstanceId,omitempty" valid:"optional,uuidv4"`
 	Sbi             *Sbi          `yaml:"sbi,omitempty" valid:"required"`
 	Metrics         *Metrics      `yaml:"metrics,omitempty" valid:"optional"`
 	MongoDBName     string        `yaml:"MongoDBName" valid:"required"`
@@ -80,6 +83,10 @@ type Logger struct {
 }
 
 func (c *Configuration) validate() (bool, error) {
+	if c.NfInstanceId == "" {
+		c.NfInstanceId = uuid.New().String()
+	}
+
 	if sbi := c.Sbi; sbi != nil {
 		if result, err := sbi.validate(); err != nil {
 			return result, err
@@ -123,6 +130,31 @@ func (c *Configuration) validate() (bool, error) {
 
 	result, err := govalidator.ValidateStruct(c)
 	return result, appendInvalid(err)
+}
+
+func (c *Config) GetNfInstanceId() string {
+	c.RLock()
+	defer c.RUnlock()
+
+	var nfInstanceId string
+
+	logger.CfgLog.Debugf("Fetching nfInstanceId from env var \"%s\"", NrfDefaultNfInstanceIdEnvVar)
+
+	if nfInstanceId = os.Getenv(NrfDefaultNfInstanceIdEnvVar); nfInstanceId == "" {
+		logger.CfgLog.Debugf("No value found for \"%s\" env, fallback on config nfInstanceId : %s",
+			NrfDefaultNfInstanceIdEnvVar, c.Configuration.NfInstanceId)
+		return c.Configuration.NfInstanceId
+	}
+
+	if err := uuid.Validate(nfInstanceId); err != nil {
+		logger.CfgLog.Errorf("Env var \"%s\" is not a valid uuid, "+
+			"fallback on configuration nfInstanceId : %s", NrfDefaultNfInstanceIdEnvVar, c.Configuration.NfInstanceId)
+		return c.Configuration.NfInstanceId
+	}
+
+	logger.CfgLog.Debugf("nfInstanceId from %s : %s", NrfDefaultNfInstanceIdEnvVar, nfInstanceId)
+
+	return nfInstanceId
 }
 
 type Sbi struct {
@@ -472,4 +504,10 @@ func (c *Config) GetMetricsNamespace() string {
 		return c.Configuration.Metrics.Namespace
 	}
 	return NrfMetricsDefaultNamespace
+}
+
+func (c *Config) GetServiceNameList() []string {
+	c.RLock()
+	defer c.RUnlock()
+	return c.Configuration.ServiceNameList
 }
