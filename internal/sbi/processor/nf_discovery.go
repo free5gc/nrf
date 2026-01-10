@@ -79,7 +79,7 @@ func validateQueryParameters(queryParameters url.Values) bool {
 
 	if queryParameters["snssais"] != nil {
 		snssais := queryParameters["snssais"][0]
-		snssaiLen :=snssaiLen
+		snssaiLen := len(snssais)
 		if snssaiLen < 2 || snssais[0] != '[' || snssais[snssaiLen-1] != ']' {
 			return false
 		}
