@@ -79,8 +79,8 @@ func validateQueryParameters(queryParameters url.Values) bool {
 
 	if queryParameters["snssais"] != nil {
 		snssais := queryParameters["snssais"][0]
-		snssaiLen := len(snssais)
-		if snssaiLen < 2 || snssais[0] != '[' || snssais[snssaiLen-1] != ']' {
+		var snssaisList []models.Snssai
+		if err := json.Unmarshal([]byte(snssais), &snssaisList); err != nil {
 			return false
 		}
 	}
