@@ -80,6 +80,17 @@ func (s *Server) HTTPAccessTokenRequest(c *gin.Context) {
 				break
 			}
 		}
+
+		// If key doesn't match any yaml tag, name will be empty string
+		if name == "" {
+			logger.AccTokenLog.Errorln("Request parsing error: unknown form key (" + key + ")")
+			errResponse := &models.AccessTokenErr{
+				Error: "invalid_request",
+			}
+			c.JSON(http.StatusBadRequest, errResponse)
+			return
+		}
+
 		if vt == reflect.TypeOf("") || vt == reflect.TypeOf(models.NrfNfManagementNfType_NRF) {
 			// Type is string
 			reflect.ValueOf(&accessTokenReq).Elem().FieldByName(name).SetString(value[0])
