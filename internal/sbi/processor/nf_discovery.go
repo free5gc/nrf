@@ -85,6 +85,22 @@ func validateQueryParameters(queryParameters url.Values) bool {
 		}
 	}
 
+	if queryParameters["complexQuery"] != nil {
+		complexQuery := queryParameters["complexQuery"][0]
+		var cq models.ComplexQuery
+		if err := json.Unmarshal([]byte(complexQuery), &cq); err != nil {
+			return false
+		}
+	}
+
+	if queryParameters["external-group-identity"] != nil {
+		externalGroupIdentity := queryParameters["external-group-identity"][0]
+		parts := strings.Split(externalGroupIdentity, "-")
+		if len(parts) < 4 {
+			return false
+		}
+	}
+
 	return true
 }
 
@@ -196,6 +212,13 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 		NfInstances:    nfProfilesStruct,
 	}
 	c.JSON(http.StatusOK, searchResult)
+}
+
+// Appends a filter to the $and clause only if the filter is not nil.
+func appendFilterIfNotNil(filter bson.M, subFilter bson.M) {
+	if subFilter != nil {
+		filter["$and"] = append(filter["$and"].([]bson.M), subFilter)
+	}
 }
 
 func buildFilter(queryParameters url.Values) bson.M {
@@ -446,7 +469,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		filter["$and"] = append(filter["$and"].([]bson.M), dnnFilter)
+		appendFilterIfNotNil(filter, dnnFilter)
 	}
 
 	// [Query-13] smf-serving-area
@@ -467,7 +490,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		filter["$and"] = append(filter["$and"].([]bson.M), smfServingAreaFilter)
+		appendFilterIfNotNil(filter, smfServingAreaFilter)
 	}
 
 	// [Query-14] tai
@@ -505,7 +528,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		filter["$and"] = append(filter["$and"].([]bson.M), taiFilter)
+		appendFilterIfNotNil(filter, taiFilter)
 	}
 
 	// [Query-15] amf-region-id
@@ -697,7 +720,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		filter["$and"] = append(filter["$and"].([]bson.M), supiFilter)
+		appendFilterIfNotNil(filter, supiFilter)
 	}
 
 	// [Query-19] ue-ipv4-address
@@ -728,7 +751,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		filter["$and"] = append(filter["$and"].([]bson.M), ueIpv4AddressFilter)
+		appendFilterIfNotNil(filter, ueIpv4AddressFilter)
 	}
 
 	// [Query-20] ip-domain
@@ -749,7 +772,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		filter["$and"] = append(filter["$and"].([]bson.M), ipDomainFilter)
+		appendFilterIfNotNil(filter, ipDomainFilter)
 	}
 
 	// [Query-21] ue-ipv6-prefix
@@ -780,7 +803,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		filter["$and"] = append(filter["$and"].([]bson.M), ueIpv6PrefixFilter)
+		appendFilterIfNotNil(filter, ueIpv6PrefixFilter)
 	}
 
 	// [Query-22] pgw-ind
@@ -894,7 +917,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		filter["$and"] = append(filter["$and"].([]bson.M), gpsiFilter)
+		appendFilterIfNotNil(filter, gpsiFilter)
 	}
 
 	// [Query-25] external-group-identity
@@ -966,7 +989,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		filter["$and"] = append(filter["$and"].([]bson.M), externalGroupIdentityFilter)
+		appendFilterIfNotNil(filter, externalGroupIdentityFilter)
 	}
 
 	// [Query-26] data-set
@@ -987,7 +1010,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		filter["$and"] = append(filter["$and"].([]bson.M), dataSetFilter)
+		appendFilterIfNotNil(filter, dataSetFilter)
 	}
 
 	// [Query-27] routing-indicator
@@ -1022,7 +1045,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		filter["$and"] = append(filter["$and"].([]bson.M), routingIndicatorFilter)
+		appendFilterIfNotNil(filter, routingIndicatorFilter)
 	}
 
 	// [Query-28] group-id-list
@@ -1057,7 +1080,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		filter["$and"] = append(filter["$and"].([]bson.M), groupIdListFilter)
+		appendFilterIfNotNil(filter, groupIdListFilter)
 	}
 
 	// [Query-29] dnai-list
@@ -1085,7 +1108,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		filter["$and"] = append(filter["$and"].([]bson.M), dnaiFilter)
+		appendFilterIfNotNil(filter, dnaiFilter)
 	}
 
 	// [Query-30] upf-iwk-eps-ind
@@ -1097,7 +1120,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 				"upfInfo.iwkEpsInd": true,
 			}
 		}
-		filter["$and"] = append(filter["$and"].([]bson.M), upfIwkEpsIndFilter)
+		appendFilterIfNotNil(filter, upfIwkEpsIndFilter)
 	}
 
 	// [Query-31] chf-supported-plmn
@@ -1135,7 +1158,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		filter["$and"] = append(filter["$and"].([]bson.M), chfSupportedPlmnFilter)
+		appendFilterIfNotNil(filter, chfSupportedPlmnFilter)
 	}
 
 	// [Query-32]  preferred-locality
