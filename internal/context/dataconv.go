@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -51,8 +52,25 @@ func Ipv6IntToIpv6String(ip *big.Int) string {
 	return ipv6String
 }
 
+func ValidateGroupIdFormat(groupId string) error {
+	// Regex pattern: prefix-mcc(3 digits)-mnc(2-3 digits)-localGroupId
+	pattern := `^[^-]+-[0-9]{3}-[0-9]{2,3}-.+$`
+	matched, err := regexp.MatchString(pattern, groupId)
+	if err != nil {
+		return fmt.Errorf("regex error: %v", err)
+	}
+	if !matched {
+		return fmt.Errorf("invalid groupId format: expected pattern 'prefix-mcc-mnc-localGroupId', got '%s'", groupId)
+	}
+	return nil
+}
+
 // EncodeGroupId - Encode GroupId to number string(output pattern: [10][3][3][25])
-func EncodeGroupId(groupId string) string {
+func EncodeGroupId(groupId string) (string, error) {
+	if err := ValidateGroupIdFormat(groupId); err != nil {
+		return "", err
+	}
+
 	externalGroupIdentitySplit := strings.Split(groupId, "-")
 
 	var encodedGroupId string
@@ -95,5 +113,5 @@ func EncodeGroupId(groupId string) string {
 	}
 	encodedGroupId = encodedGroupId + localGroupIdPadding + strconv.Itoa(encodedLocalGroupId)
 
-	return encodedGroupId
+	return encodedGroupId, nil
 }

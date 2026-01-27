@@ -2,6 +2,7 @@ package processor
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"math/big"
 	"net/http"
@@ -85,22 +86,6 @@ func validateQueryParameters(queryParameters url.Values) bool {
 		}
 	}
 
-	if queryParameters["complexQuery"] != nil {
-		complexQuery := queryParameters["complexQuery"][0]
-		var cq models.ComplexQuery
-		if err := json.Unmarshal([]byte(complexQuery), &cq); err != nil {
-			return false
-		}
-	}
-
-	if queryParameters["external-group-identity"] != nil {
-		externalGroupIdentity := queryParameters["external-group-identity"][0]
-		parts := strings.Split(externalGroupIdentity, "-")
-		if len(parts) < 4 {
-			return false
-		}
-	}
-
 	return true
 }
 
@@ -139,10 +124,18 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 		}
 	}
 
-	// Check ComplexQuery (FOR REPORT PROBLEM!)
-
 	// Build Query Filter
-	filter := buildFilter(queryParameters)
+	filter, err := buildFilter(queryParameters)
+	if err != nil {
+		problemDetails := &models.ProblemDetails{
+			Title:  "Invalid Parameter",
+			Status: http.StatusBadRequest,
+			Cause:  "INVALID_QUERY_PARAM",
+			Detail: err.Error(),
+		}
+		util.GinProblemJson(c, problemDetails)
+		return
+	}
 	logger.DiscLog.Traceln("Query filter: ", filter)
 
 	// Use the filter to find documents
@@ -214,14 +207,7 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 	c.JSON(http.StatusOK, searchResult)
 }
 
-// Appends a filter to the $and clause only if the filter is not nil.
-func appendFilterIfNotNil(filter bson.M, subFilter bson.M) {
-	if subFilter != nil {
-		filter["$and"] = append(filter["$and"].([]bson.M), subFilter)
-	}
-}
-
-func buildFilter(queryParameters url.Values) bson.M {
+func buildFilter(queryParameters url.Values) (bson.M, error) {
 	// build the filter
 	filter := bson.M{
 		"$and": []bson.M{},
@@ -416,10 +402,9 @@ func buildFilter(queryParameters url.Values) bson.M {
 	// [Query-12] dnn
 	if queryParameters["dnn"] != nil {
 		dnn := queryParameters["dnn"][0]
-		var dnnFilter bson.M
 		switch targetNfType {
 		case "SMF":
-			dnnFilter = bson.M{
+			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
 				"smfInfo.sNssaiSmfInfoList": bson.M{
 					"$elemMatch": bson.M{
 						"dnnSmfInfoList": bson.M{
@@ -429,9 +414,9 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 				},
-			}
+			})
 		case "UPF":
-			dnnFilter = bson.M{
+			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
 				"upfInfo.sNssaiUpfInfoList": bson.M{
 					"$elemMatch": bson.M{
 						"dnnUpfInfoList": bson.M{
@@ -441,9 +426,9 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 				},
-			}
+			})
 		case "BSF":
-			dnnFilter = bson.M{
+			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
 				"$or": []bson.M{
 					{
 						"bsfInfo.dnnList": dnn,
@@ -454,9 +439,9 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 				},
-			}
+			})
 		case "PCF":
-			dnnFilter = bson.M{
+			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
 				"$or": []bson.M{
 					{
 						"pcfInfo.dnnList": dnn,
@@ -467,17 +452,15 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 				},
-			}
+			})
 		}
-		appendFilterIfNotNil(filter, dnnFilter)
 	}
 
 	// [Query-13] smf-serving-area
 	if queryParameters["smf-serving-area"] != nil {
-		var smfServingAreaFilter bson.M
 		smfServingArea := queryParameters["smf-serving-area"][0]
 		if targetNfType == "UPF" {
-			smfServingAreaFilter = bson.M{
+			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
 				"$or": []bson.M{
 					{
 						"upfInfo.smfServingArea": smfServingArea,
@@ -488,14 +471,12 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 				},
-			}
+			})
 		}
-		appendFilterIfNotNil(filter, smfServingAreaFilter)
 	}
 
 	// [Query-14] tai
 	if queryParameters["tai"] != nil {
-		var taiFilter bson.M
 		tai := queryParameters["tai"][0]
 
 		taiStruct := &models.Tai{}
@@ -516,19 +497,18 @@ func buildFilter(queryParameters url.Values) bson.M {
 		}
 		switch targetNfType {
 		case "SMF":
-			taiFilter = bson.M{
+			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
 				"smfInfo.taiList": bson.M{
 					"$elemMatch": taiBsonM,
 				},
-			}
+			})
 		case "AMF":
-			taiFilter = bson.M{
+			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
 				"amfInfo.taiList": bson.M{
 					"$elemMatch": taiBsonM,
 				},
-			}
+			})
 		}
-		appendFilterIfNotNil(filter, taiFilter)
 	}
 
 	// [Query-15] amf-region-id
@@ -720,16 +700,17 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		appendFilterIfNotNil(filter, supiFilter)
+		if supiFilter != nil {
+			filter["$and"] = append(filter["$and"].([]bson.M), supiFilter)
+		}
 	}
 
 	// [Query-19] ue-ipv4-address
 	if queryParameters["ue-ipv4-address"] != nil {
-		var ueIpv4AddressFilter bson.M
 		if targetNfType == "BSF" {
 			ueIpv4Address := queryParameters["ue-ipv4-address"][0]
 			ueIpv4AddressNumber := nrf_context.Ipv4ToInt(ueIpv4Address)
-			ueIpv4AddressFilter = bson.M{
+			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
 				"$or": []bson.M{
 					{
 						"bsfInfo.ipv4AddressRanges": bson.M{
@@ -749,17 +730,15 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 				},
-			}
+			})
 		}
-		appendFilterIfNotNil(filter, ueIpv4AddressFilter)
 	}
 
 	// [Query-20] ip-domain
 	if queryParameters["ip-domain"] != nil {
-		var ipDomainFilter bson.M
 		if targetNfType == "BSF" {
 			ipDomain := queryParameters["ip-domain"][0]
-			ipDomainFilter = bson.M{
+			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
 				"$or": []bson.M{
 					{
 						"bsfInfo.ipDomainList": ipDomain,
@@ -770,18 +749,16 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 				},
-			}
+			})
 		}
-		appendFilterIfNotNil(filter, ipDomainFilter)
 	}
 
 	// [Query-21] ue-ipv6-prefix
 	if queryParameters["ue-ipv6-prefix"] != nil {
-		var ueIpv6PrefixFilter bson.M
 		if targetNfType == "BSF" {
 			ueIpv6Prefix := queryParameters["ue-ipv6-prefix"][0]
 			ueIpv6PrefixNumber := nrf_context.Ipv6ToInt(ueIpv6Prefix)
-			ueIpv6PrefixFilter = bson.M{
+			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
 				"$or": []bson.M{
 					{
 						"bsfInfo.ipv6PrefixRanges": bson.M{
@@ -801,9 +778,8 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 				},
-			}
+			})
 		}
-		appendFilterIfNotNil(filter, ueIpv6PrefixFilter)
 	}
 
 	// [Query-22] pgw-ind
@@ -917,7 +893,9 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		appendFilterIfNotNil(filter, gpsiFilter)
+		if gpsiFilter != nil {
+			filter["$and"] = append(filter["$and"].([]bson.M), gpsiFilter)
+		}
 	}
 
 	// [Query-25] external-group-identity
@@ -925,7 +903,10 @@ func buildFilter(queryParameters url.Values) bson.M {
 		var externalGroupIdentityFilter bson.M
 		externalGroupIdentity := queryParameters["external-group-identity"][0]
 
-		encodedGroupId := nrf_context.EncodeGroupId(externalGroupIdentity)
+		encodedGroupId, err := nrf_context.EncodeGroupId(externalGroupIdentity)
+		if err != nil {
+			return nil, fmt.Errorf("invalid external-group-identity: %w", err)
+		}
 
 		switch targetNfType {
 		case "UDM":
@@ -989,15 +970,16 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		appendFilterIfNotNil(filter, externalGroupIdentityFilter)
+		if externalGroupIdentityFilter != nil {
+			filter["$and"] = append(filter["$and"].([]bson.M), externalGroupIdentityFilter)
+		}
 	}
 
 	// [Query-26] data-set
 	if queryParameters["data-set"] != nil {
-		var dataSetFilter bson.M
 		dataSet := queryParameters["data-set"]
 		if targetNfType == "UDR" {
-			dataSetFilter = bson.M{
+			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
 				"$or": []bson.M{
 					{
 						"udrInfo.supportedDataSets": dataSet,
@@ -1008,9 +990,8 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 				},
-			}
+			})
 		}
-		appendFilterIfNotNil(filter, dataSetFilter)
 	}
 
 	// [Query-27] routing-indicator
@@ -1045,7 +1026,9 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		appendFilterIfNotNil(filter, routingIndicatorFilter)
+		if routingIndicatorFilter != nil {
+			filter["$and"] = append(filter["$and"].([]bson.M), routingIndicatorFilter)
+		}
 	}
 
 	// [Query-28] group-id-list
@@ -1080,12 +1063,13 @@ func buildFilter(queryParameters url.Values) bson.M {
 				},
 			}
 		}
-		appendFilterIfNotNil(filter, groupIdListFilter)
+		if groupIdListFilter != nil {
+			filter["$and"] = append(filter["$and"].([]bson.M), groupIdListFilter)
+		}
 	}
 
 	// [Query-29] dnai-list
 	if queryParameters["dnai-list"] != nil {
-		var dnaiFilter bson.M
 		dnaiList := queryParameters["dnai-list"][0]
 		dnaiListSplit := strings.Split(dnaiList, ",")
 		var dnaiListBsonArray bson.A
@@ -1094,7 +1078,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 			dnaiListBsonArray = append(dnaiListBsonArray, v)
 		}
 		if targetNfType == "UPF" {
-			dnaiFilter = bson.M{
+			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
 				"upfInfo.sNssaiUpfInfoList": bson.M{
 					"$elemMatch": bson.M{
 						"dnnUpfInfoList": bson.M{
@@ -1106,26 +1090,22 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 				},
-			}
+			})
 		}
-		appendFilterIfNotNil(filter, dnaiFilter)
 	}
 
 	// [Query-30] upf-iwk-eps-ind
 	if queryParameters["upf-iwk-eps-ind"] != nil {
-		var upfIwkEpsIndFilter bson.M
 		// upfIwkEpsInd := queryParameters["upf-iwk-eps-ind"][0]
 		if targetNfType == "UPF" {
-			upfIwkEpsIndFilter = bson.M{
+			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
 				"upfInfo.iwkEpsInd": true,
-			}
+			})
 		}
-		appendFilterIfNotNil(filter, upfIwkEpsIndFilter)
 	}
 
 	// [Query-31] chf-supported-plmn
 	if queryParameters["chf-supported-plmn"] != nil {
-		var chfSupportedPlmnFilter bson.M
 		chfSupportedPlmn := queryParameters["chf-supported-plmn"][0]
 		chfSupportedPlmnStruct := &models.PlmnId{}
 		err := json.Unmarshal([]byte(chfSupportedPlmn), chfSupportedPlmnStruct)
@@ -1136,7 +1116,7 @@ func buildFilter(queryParameters url.Values) bson.M {
 		encodedchfSupportedPlmn := chfSupportedPlmnStruct.Mcc + chfSupportedPlmnStruct.Mnc
 
 		if targetNfType == "CHF" {
-			chfSupportedPlmnFilter = bson.M{
+			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
 				"$or": []bson.M{
 					{
 						"chfInfo.plmnRangeList": bson.M{
@@ -1156,9 +1136,8 @@ func buildFilter(queryParameters url.Values) bson.M {
 						},
 					},
 				},
-			}
+			})
 		}
-		appendFilterIfNotNil(filter, chfSupportedPlmnFilter)
 	}
 
 	// [Query-32]  preferred-locality
@@ -1211,10 +1190,13 @@ func buildFilter(queryParameters url.Values) bson.M {
 		if err != nil {
 			logger.DiscLog.Warnln("Unmarshal Error in complexQuery: ", err)
 		}
-		complexQueryFilter := complexQueryFilter(complexQueryStruct)
+		complexQueryFilter, err := complexQueryFilter(complexQueryStruct)
+		if err != nil {
+			return nil, err
+		}
 		filter["$and"] = append(filter["$and"].([]bson.M), complexQueryFilter)
 	}
-	return filter
+	return filter, nil
 }
 
 const (
@@ -1227,7 +1209,7 @@ type AtomElem struct {
 	negative bool
 }
 
-func complexQueryFilter(complexQueryParameter *models.ComplexQuery) bson.M {
+func complexQueryFilter(complexQueryParameter *models.ComplexQuery) (bson.M, error) {
 	complexQueryType := ""
 	if complexQueryParameter.CnfUnits != nil {
 		complexQueryType = COMPLEX_QUERY_TYPE_CNF
@@ -1253,7 +1235,10 @@ func complexQueryFilter(complexQueryParameter *models.ComplexQuery) bson.M {
 				value := string(valueJson)
 				queryParameters[atom.Attr] = &AtomElem{value: value, negative: atom.Negative}
 			}
-			cnfUnitFilter = complexQueryFilterSubprocess(queryParameters, complexQueryType)
+			cnfUnitFilter, err := complexQueryFilterSubprocess(queryParameters, complexQueryType)
+			if err != nil {
+				return nil, err
+			}
 
 			filter["$and"] = append(filter["$and"].([]bson.M), cnfUnitFilter)
 		}
@@ -1262,10 +1247,10 @@ func complexQueryFilter(complexQueryParameter *models.ComplexQuery) bson.M {
 			"$or": []bson.M{},
 		}
 	}
-	return filter
+	return filter, nil
 }
 
-func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQueryType string) bson.M {
+func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQueryType string) (bson.M, error) {
 	var filter bson.M
 	var logicalOperator string
 
@@ -1599,6 +1584,9 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 		var taiFilter bson.M
 		tai := queryParameters["tai"].value
 		taiSplit := strings.Split(tai, ",")
+		if len(taiSplit) < 2 {
+			return nil, fmt.Errorf("invalid tai format: insufficient comma-separated values")
+		}
 		tempTai := taiSplit[0] + "," + taiSplit[1]
 
 		taiStruct := &models.Tai{}
@@ -2297,5 +2285,5 @@ func complexQueryFilterSubprocess(queryParameters map[string]*AtomElem, complexQ
 		filter[logicalOperator] = append(filter[logicalOperator].([]bson.M), supportedFeaturesFilter)
 	}
 
-	return filter
+	return filter, nil
 }
