@@ -401,10 +401,11 @@ func buildFilter(queryParameters url.Values) (bson.M, error) {
 
 	// [Query-12] dnn
 	if queryParameters["dnn"] != nil {
+		var dnnFilter bson.M
 		dnn := queryParameters["dnn"][0]
 		switch targetNfType {
 		case "SMF":
-			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
+			dnnFilter = bson.M{
 				"smfInfo.sNssaiSmfInfoList": bson.M{
 					"$elemMatch": bson.M{
 						"dnnSmfInfoList": bson.M{
@@ -414,9 +415,9 @@ func buildFilter(queryParameters url.Values) (bson.M, error) {
 						},
 					},
 				},
-			})
+			}
 		case "UPF":
-			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
+			dnnFilter = bson.M{
 				"upfInfo.sNssaiUpfInfoList": bson.M{
 					"$elemMatch": bson.M{
 						"dnnUpfInfoList": bson.M{
@@ -426,9 +427,9 @@ func buildFilter(queryParameters url.Values) (bson.M, error) {
 						},
 					},
 				},
-			})
+			}
 		case "BSF":
-			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
+			dnnFilter = bson.M{
 				"$or": []bson.M{
 					{
 						"bsfInfo.dnnList": dnn,
@@ -439,9 +440,9 @@ func buildFilter(queryParameters url.Values) (bson.M, error) {
 						},
 					},
 				},
-			})
+			}
 		case "PCF":
-			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
+			dnnFilter = bson.M{
 				"$or": []bson.M{
 					{
 						"pcfInfo.dnnList": dnn,
@@ -452,7 +453,10 @@ func buildFilter(queryParameters url.Values) (bson.M, error) {
 						},
 					},
 				},
-			})
+			}
+		}
+		if dnnFilter != nil {
+			filter["$and"] = append(filter["$and"].([]bson.M), dnnFilter)
 		}
 	}
 
@@ -477,6 +481,7 @@ func buildFilter(queryParameters url.Values) (bson.M, error) {
 
 	// [Query-14] tai
 	if queryParameters["tai"] != nil {
+		var taiFilter bson.M
 		tai := queryParameters["tai"][0]
 
 		taiStruct := &models.Tai{}
@@ -497,17 +502,20 @@ func buildFilter(queryParameters url.Values) (bson.M, error) {
 		}
 		switch targetNfType {
 		case "SMF":
-			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
+			taiFilter = bson.M{
 				"smfInfo.taiList": bson.M{
 					"$elemMatch": taiBsonM,
 				},
-			})
+			}
 		case "AMF":
-			filter["$and"] = append(filter["$and"].([]bson.M), bson.M{
+			taiFilter = bson.M{
 				"amfInfo.taiList": bson.M{
 					"$elemMatch": taiBsonM,
 				},
-			})
+			}
+		}
+		if taiFilter != nil {
+			filter["$and"] = append(filter["$and"].([]bson.M), taiFilter)
 		}
 	}
 
