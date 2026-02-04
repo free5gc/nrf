@@ -911,10 +911,11 @@ func buildFilter(queryParameters url.Values) (bson.M, error) {
 		var externalGroupIdentityFilter bson.M
 		externalGroupIdentity := queryParameters["external-group-identity"][0]
 
-		encodedGroupId, err := nrf_context.EncodeGroupId(externalGroupIdentity)
-		if err != nil {
+		if err := validator.ValidateGroupIdFormat(externalGroupIdentity); err != nil {
 			return nil, fmt.Errorf("invalid external-group-identity: %w", err)
 		}
+
+		encodedGroupId := nrf_context.EncodeGroupId(externalGroupIdentity)
 
 		switch targetNfType {
 		case "UDM":

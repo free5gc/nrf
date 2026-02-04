@@ -5,10 +5,10 @@ go 1.25.5
 require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/free5gc/openapi v1.2.3
-	github.com/free5gc/util v1.3.2-0.20260107090449-c09baaf75b11
+	github.com/free5gc/util v1.3.2-0.20260204030658-79d56f347175
 	github.com/gin-gonic/gin v1.10.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
-	github.com/google/uuid v1.6.0
+	github.com/google/uuid v1.3.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.21.0
