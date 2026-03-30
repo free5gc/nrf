@@ -70,33 +70,43 @@ func (s *Server) HTTPAccessTokenRequest(c *gin.Context) {
 		return
 	}
 	rt := reflect.TypeOf(accessTokenReq)
+	rv := reflect.ValueOf(&accessTokenReq).Elem()
 	for key, value := range c.Request.PostForm {
-		var name string
-		var vt reflect.Type
+		fieldIdx := -1
 		for i := 0; i < rt.NumField(); i++ {
 			if tag := rt.Field(i).Tag.Get("yaml"); tag == key {
-				name = rt.Field(i).Name
-				vt = rt.Field(i).Type
+				fieldIdx = i
 				break
 			}
 		}
 
-		// If key doesn't match any yaml tag, name will be empty string
-		if name == "" {
-			logger.AccTokenLog.Errorln("Request parsing error: unknown form key (" + key + ")")
-			errResponse := &models.AccessTokenErr{
-				Error: "invalid_request",
+		if fieldIdx < 0 {
+			pd := &models.ProblemDetails{
+				Title:  "Request Parse Error",
+				Status: http.StatusBadRequest,
+				Detail: "unsupported form key: " + key,
 			}
-			c.JSON(http.StatusBadRequest, errResponse)
+			util.GinProblemJson(c, pd)
 			return
 		}
 
-		if vt == reflect.TypeOf("") || vt == reflect.TypeOf(models.NrfNfManagementNfType_NRF) {
-			// Type is string
-			reflect.ValueOf(&accessTokenReq).Elem().FieldByName(name).SetString(value[0])
+		if len(value) == 0 {
+			pd := &models.ProblemDetails{
+				Title:  "Request Parse Error",
+				Status: http.StatusBadRequest,
+				Detail: "empty value for form key: " + key,
+			}
+			util.GinProblemJson(c, pd)
+			return
+		}
+
+		field := rv.Field(fieldIdx)
+		fieldType := rt.Field(fieldIdx).Type
+		if fieldType.Kind() == reflect.String {
+			field.SetString(value[0])
 		} else {
-			plmnid := models.PlmnId{}
-			err = json.Unmarshal([]byte(value[0]), &plmnid)
+			decoded := reflect.New(fieldType)
+			err = json.Unmarshal([]byte(value[0]), decoded.Interface())
 			if err != nil {
 				problemDetail := "[Request Body] " + err.Error()
 				pd := &models.ProblemDetails{
@@ -104,12 +114,11 @@ func (s *Server) HTTPAccessTokenRequest(c *gin.Context) {
 					Status: http.StatusBadRequest,
 					Detail: problemDetail,
 				}
-				logger.AccTokenLog.Errorf("PlmnId Unmarshal err:%+v", problemDetail)
+				logger.AccTokenLog.Errorf("JSON unmarshal err for key %s: %+v", key, problemDetail)
 				util.GinProblemJson(c, pd)
 				return
 			}
-			reflectvalue := reflect.ValueOf(&plmnid)
-			reflect.ValueOf(&accessTokenReq).Elem().FieldByName(name).Set(reflectvalue)
+			field.Set(decoded.Elem())
 		}
 	}
 	s.Processor().HandleAccessTokenRequest(c, accessTokenReq)
