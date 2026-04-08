@@ -1,7 +1,6 @@
 package context
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"net"
@@ -42,13 +41,18 @@ func Ipv4IntToIpv4String(ip int64) string {
 
 // Ipv6IntToIpv6String - Convert Ipv6 *big.Int to string
 func Ipv6IntToIpv6String(ip *big.Int) string {
-	ipv6Bytes := ip.Bytes()
-	ipv6String := hex.EncodeToString(ipv6Bytes)
-
-	for i := 1; i < 8; i++ {
-		ipv6String = ipv6String[:i-1+4*i] + ":" + ipv6String[i-1+4*i:]
+	if ip == nil || ip.Sign() < 0 {
+		return ""
 	}
-	return ipv6String
+
+	ipv6Bytes := ip.Bytes()
+	if len(ipv6Bytes) > net.IPv6len {
+		return ""
+	}
+
+	var fullIPv6 [net.IPv6len]byte
+	copy(fullIPv6[net.IPv6len-len(ipv6Bytes):], ipv6Bytes)
+	return net.IP(fullIPv6[:]).String()
 }
 
 // EncodeGroupId - Encode GroupId to number string(output pattern: [10][3][3][25])
