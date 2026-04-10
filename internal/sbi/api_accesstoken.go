@@ -81,6 +81,7 @@ func (s *Server) HTTPAccessTokenRequest(c *gin.Context) {
 		}
 
 		if fieldIdx < 0 {
+			logger.AccTokenLog.Errorln("Request parsing error: unknown form key (" + key + ")")
 			pd := &models.ProblemDetails{
 				Title:  "Request Parse Error",
 				Status: http.StatusBadRequest,
@@ -91,6 +92,7 @@ func (s *Server) HTTPAccessTokenRequest(c *gin.Context) {
 		}
 
 		if len(value) == 0 {
+			logger.AccTokenLog.Errorln("Request parsing error: empty form value (" + key + ")")
 			pd := &models.ProblemDetails{
 				Title:  "Request Parse Error",
 				Status: http.StatusBadRequest,
