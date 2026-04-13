@@ -1,6 +1,7 @@
 package context
 
 import (
+	"context"
 	"crypto/rsa"
 	"crypto/x509"
 	"os"
@@ -8,11 +9,15 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/pkg/errors"
+	"golang.org/x/oauth2"
 
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/pkg/factory"
+	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/openapi/oauth"
 )
@@ -212,6 +217,42 @@ func (context *NRFContext) AuthorizationCheck(token string, serviceName models.S
 		return err
 	}
 	return nil
+}
+
+// NRF is the token authority, so it signs tokens directly using its own private key.
+func (ctx *NRFContext) GetTokenCtx(
+	serviceName models.ServiceName, targetNF models.NrfNfManagementNfType,
+) (context.Context, *models.ProblemDetails, error) {
+	if !factory.NrfConfig.GetOAuth() {
+		return context.TODO(), nil, nil
+	}
+	if ctx.NrfPrivKey == nil {
+		pd := &models.ProblemDetails{Status: 500, Cause: "NRF_PRIVATE_KEY_MISSING"}
+		return nil, pd, errors.New("NRF private key not initialized")
+	}
+
+	var expiration int32 = 1000
+	now := int32(time.Now().Unix())
+
+	claims := models.AccessTokenClaims{
+		Iss:   ctx.NrfNfProfile.NfInstanceId,
+		Sub:   ctx.NrfNfProfile.NfInstanceId,
+		Scope: string(serviceName),
+		Exp:   now + expiration,
+	}
+	token := jwt.NewWithClaims(jwt.GetSigningMethod("RS512"), claims)
+	accessToken, err := token.SignedString(ctx.NrfPrivKey)
+	if err != nil {
+		pd := &models.ProblemDetails{Status: 500, Cause: "TOKEN_SIGNING_FAILED"}
+		return nil, pd, err
+	}
+
+	tok := oauth2.StaticTokenSource(&oauth2.Token{
+		AccessToken: accessToken,
+		TokenType:   "Bearer",
+		Expiry:      time.Unix(int64(now+expiration), 0),
+	})
+	return context.WithValue(context.Background(), openapi.ContextOAuth2, tok), nil, nil
 }
 
 func (ctx *NRFContext) AddNfRegister() {
