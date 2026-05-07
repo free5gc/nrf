@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 
 	nrf_context "github.com/free5gc/nrf/internal/context"
@@ -114,6 +115,13 @@ func (p *Processor) AccessTokenScopeCheck(req models.NrfAccessTokenAccessTokenRe
 		}
 	}
 
+	if _, err := uuid.Parse(reqNfInstanceId); err != nil {
+		logger.AccTokenLog.Errorf("invalid nfInstanceId format: %v", err)
+		return &models.AccessTokenErr{
+			Error: "invalid_client",
+		}
+	}
+
 	logger.AccTokenLog.Debugf("reqNfInstanceId: %s", reqNfInstanceId)
 	filter := bson.M{"nfInstanceId": reqNfInstanceId}
 	consumerNfInfo, err := mongoapi.RestfulAPIGetOne(collName, filter)
@@ -172,8 +180,22 @@ func (p *Processor) AccessTokenScopeCheck(req models.NrfAccessTokenAccessTokenRe
 		}
 	}
 
+	if len(nfCert.URIs) == 0 || nfCert.URIs[0] == nil {
+		logger.AccTokenLog.Errorln("Certificate verify error: missing URI SAN")
+		return &models.AccessTokenErr{
+			Error: "invalid_client",
+		}
+	}
+
 	uri := nfCert.URIs[0]
-	id := strings.Split(uri.Opaque, ":")[1]
+	opaqueParts := strings.SplitN(uri.Opaque, ":", 2)
+	if len(opaqueParts) != 2 || opaqueParts[1] == "" {
+		logger.AccTokenLog.Errorf("Certificate verify error: invalid URI SAN format: %s", uri.String())
+		return &models.AccessTokenErr{
+			Error: "invalid_client",
+		}
+	}
+	id := opaqueParts[1]
 	if id != reqNfInstanceId {
 		logger.AccTokenLog.Errorln("Certificate verify error: NF Instance Id mismatch (Expected ID: " +
 			reqNfInstanceId + " Received ID: " + id + ")")

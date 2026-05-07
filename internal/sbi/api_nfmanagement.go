@@ -162,6 +162,27 @@ func (s *Server) HTTPRegisterNFInstance(c *gin.Context) {
 		return
 	}
 
+	nfInstanceID := c.Params.ByName("nfInstanceID")
+	if nfInstanceID == "" {
+		problemDetail := &models.ProblemDetails{
+			Title:  "nfInstanceID Empty",
+			Status: http.StatusBadRequest,
+			Detail: "nfInstanceID not exist in request",
+		}
+		util.GinProblemJson(c, problemDetail)
+		return
+	}
+
+	if nfprofile.NfInstanceId != nfInstanceID {
+		problemDetail := &models.ProblemDetails{
+			Title:  "Malformed request syntax",
+			Status: http.StatusBadRequest,
+			Detail: "nfInstanceId in body must match nfInstanceID in URI",
+		}
+		util.GinProblemJson(c, problemDetail)
+		return
+	}
+
 	s.Processor().HandleNFRegisterRequest(c, &nfprofile)
 }
 

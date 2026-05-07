@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -49,7 +50,11 @@ func (p *Processor) HandleNFRegisterRequest(c *gin.Context, nfProfile *models.Nr
 func (p *Processor) HandleUpdateNFInstanceRequest(c *gin.Context, patchJSON []byte, nfInstanceID string) {
 	logger.NfmLog.Infoln("Handle UpdateNFInstanceRequest")
 
-	response := p.UpdateNFInstanceProcedure(nfInstanceID, patchJSON)
+	response, problemDetails := p.UpdateNFInstanceProcedure(nfInstanceID, patchJSON)
+	if problemDetails != nil {
+		util.GinProblemJson(c, problemDetails)
+		return
+	}
 	if response == nil {
 		c.Status(http.StatusNoContent)
 		return
@@ -327,19 +332,40 @@ func (p *Processor) NFDeregisterProcedure(nfInstanceID string) *models.ProblemDe
 	return nil
 }
 
-func (p *Processor) UpdateNFInstanceProcedure(nfInstanceID string, patchJSON []byte) map[string]interface{} {
+func (p *Processor) UpdateNFInstanceProcedure(
+	nfInstanceID string,
+	patchJSON []byte,
+) (map[string]interface{}, *models.ProblemDetails) {
+	if err := validateNfProfilePatch(patchJSON); err != nil {
+		logger.NfmLog.Warnf("Reject invalid NF profile patch: %v", err)
+		return nil, &models.ProblemDetails{
+			Title:  "Malformed request syntax",
+			Status: http.StatusBadRequest,
+			Detail: err.Error(),
+		}
+	}
+
 	collName := nrf_context.NfProfileCollName
 	filter := bson.M{"nfInstanceId": nfInstanceID}
 
 	if err := mongoapi.RestfulAPIJSONPatch(collName, filter, patchJSON); err != nil {
 		logger.NfmLog.Errorf("UpdateNFInstanceProcedure err: %+v", err)
-		return nil
+		return nil, &models.ProblemDetails{
+			Title:  "Malformed request syntax",
+			Status: http.StatusBadRequest,
+			Detail: err.Error(),
+		}
 	}
 
 	nf, err := mongoapi.RestfulAPIGetOne(collName, filter)
 	if err != nil {
 		logger.NfmLog.Errorf("UpdateNFInstanceProcedure err: %+v", err)
-		return nil
+		return nil, &models.ProblemDetails{
+			Title:  "System failure",
+			Status: http.StatusInternalServerError,
+			Detail: err.Error(),
+			Cause:  "SYSTEM_FAILURE",
+		}
 	}
 
 	nfProfilesRaw := []map[string]interface{}{
@@ -349,11 +375,21 @@ func (p *Processor) UpdateNFInstanceProcedure(nfInstanceID string, patchJSON []b
 	var nfProfiles []models.NrfNfManagementNfProfile
 	if err = timedecode.Decode(nfProfilesRaw, &nfProfiles); err != nil {
 		logger.NfmLog.Errorf("UpdateNFInstanceProcedure err: %+v", err)
+		return nil, &models.ProblemDetails{
+			Title:  "System failure",
+			Status: http.StatusInternalServerError,
+			Detail: err.Error(),
+			Cause:  "SYSTEM_FAILURE",
+		}
 	}
 
 	if len(nfProfiles) == 0 {
 		logger.NfmLog.Warnf("NFProfile[%s] not found", nfInstanceID)
-		return nil
+		return nil, &models.ProblemDetails{
+			Status: http.StatusNotFound,
+			Cause:  "RESOURCE_URI_STRUCTURE_NOT_FOUND",
+			Detail: fmt.Sprintf("NFProfile[%s] not found", nfInstanceID),
+		}
 	}
 
 	uriList := nrf_context.GetNofificationUri(&nfProfiles[0])
@@ -365,7 +401,38 @@ func (p *Processor) UpdateNFInstanceProcedure(nfInstanceID string, patchJSON []b
 	for _, uri := range uriList {
 		p.Consumer().SendNFStatusNotify(context.Background(), Notification_event, nfInstanceUri, uri, &nfProfiles[0])
 	}
-	return nf
+	return nf, nil
+}
+
+func validateNfProfilePatch(patchJSON []byte) error {
+	var operations []map[string]interface{}
+	if err := json.Unmarshal(patchJSON, &operations); err != nil {
+		return fmt.Errorf("invalid JSON Patch payload")
+	}
+
+	for _, operation := range operations {
+		path, ok := operation["path"].(string)
+		if !ok {
+			continue
+		}
+
+		normalizedPath := strings.ToLower(strings.TrimSpace(path))
+		if normalizedPath == "/nfinstanceid" || strings.HasPrefix(normalizedPath, "/nfinstanceid/") {
+			return fmt.Errorf("nfInstanceId is immutable and cannot be modified")
+		}
+
+		from, ok := operation["from"].(string)
+		if !ok {
+			continue
+		}
+
+		normalizedFrom := strings.ToLower(strings.TrimSpace(from))
+		if normalizedFrom == "/nfinstanceid" || strings.HasPrefix(normalizedFrom, "/nfinstanceid/") {
+			return fmt.Errorf("nfInstanceId is immutable and cannot be modified")
+		}
+	}
+
+	return nil
 }
 
 func (p *Processor) GetNFInstanceProcedure(c *gin.Context, nfInstanceID string) {
