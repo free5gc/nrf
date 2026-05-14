@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 
@@ -237,8 +238,13 @@ func (ctx *NRFContext) GetTokenCtx(
 	claims := models.AccessTokenClaims{
 		Iss:   ctx.NrfNfProfile.NfInstanceId,
 		Sub:   ctx.NrfNfProfile.NfInstanceId,
+		Aud:   targetNF,
 		Scope: string(serviceName),
 		Exp:   now + expiration,
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt: jwt.NewNumericDate(time.Unix(int64(now), 0)),
+			ID:       uuid.New().String(),
+		},
 	}
 	token := jwt.NewWithClaims(jwt.GetSigningMethod("RS512"), claims)
 	accessToken, err := token.SignedString(ctx.NrfPrivKey)

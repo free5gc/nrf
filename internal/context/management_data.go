@@ -449,7 +449,12 @@ func SetLocationHeader(nfprofile *models.NrfNfManagementNfProfile) string {
 	return locationHeader[0]
 }
 
-func setUriListByFilter(filter bson.M, uriList *[]string) {
+type NotificationTarget struct {
+	Uri      string
+	TargetNf models.NrfNfManagementNfType
+}
+
+func setUriListByFilter(filter bson.M, uriList *[]NotificationTarget) {
 	filterNfTypeResultsRaw, err := mongoapi.RestfulAPIGetMany("Subscriptions", filter)
 	if err != nil {
 		logger.NfmLog.Errorf("setUriListByFilter err: %+v", err)
@@ -461,7 +466,10 @@ func setUriListByFilter(filter bson.M, uriList *[]string) {
 	}
 
 	for _, subscr := range filterNfTypeResults {
-		*uriList = append(*uriList, subscr.NfStatusNotificationUri)
+		*uriList = append(*uriList, NotificationTarget{
+			Uri:      subscr.NfStatusNotificationUri,
+			TargetNf: subscr.ReqNfType,
+		})
 	}
 }
 
@@ -500,8 +508,8 @@ func nnrfUriList(originalUL *UriList, ul *UriList, location []string) {
 	ul.Link = *links
 }
 
-func GetNofificationUri(nfProfile *models.NrfNfManagementNfProfile) []string {
-	var uriList []string
+func GetNofificationUri(nfProfile *models.NrfNfManagementNfProfile) []NotificationTarget {
+	var uriList []NotificationTarget
 
 	// nfTypeCond
 	nfTypeCond := bson.M{
