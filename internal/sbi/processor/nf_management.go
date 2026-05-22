@@ -23,6 +23,24 @@ import (
 	"github.com/free5gc/util/mongoapi"
 )
 
+// getNFNotifyCtx returns a context carrying an NRF self-signed Bearer token
+// for outbound NF status notifications.
+func (p *Processor) getNFNotifyCtx(targetNF models.NrfNfManagementNfType) (context.Context, *models.ProblemDetails) {
+	ctx, pd, err := nrf_context.GetSelf().GetTokenCtx("", targetNF)
+	if err != nil {
+		logger.NfmLog.Errorf("getNFNotifyCtx: token generation failed: %v", err)
+		if pd == nil {
+			pd = &models.ProblemDetails{
+				Status: http.StatusInternalServerError,
+				Cause:  "TOKEN_GENERATION_FAILED",
+				Detail: err.Error(),
+			}
+		}
+		return nil, pd
+	}
+	return ctx, nil
+}
+
 func (p *Processor) HandleNFDeregisterRequest(c *gin.Context, nfInstanceId string) {
 	logger.NfmLog.Infoln("Handle NFDeregisterRequest")
 
@@ -300,8 +318,12 @@ func (p *Processor) NFDeregisterProcedure(nfInstanceID string) *models.ProblemDe
 	// set info for NotificationData
 	Notification_event := models.NotificationEventType_DEREGISTERED
 
-	for _, uri := range uriList {
-		problemDetails := p.Consumer().SendNFStatusNotify(context.Background(), Notification_event, nfInstanceUri, uri, nil)
+	for _, target := range uriList {
+		notifCtx, pd := p.getNFNotifyCtx(target.TargetNf)
+		if pd != nil {
+			return pd
+		}
+		problemDetails := p.Consumer().SendNFStatusNotify(notifCtx, Notification_event, nfInstanceUri, target.Uri, nil)
 		if problemDetails != nil {
 			return problemDetails
 		}
@@ -398,8 +420,13 @@ func (p *Processor) UpdateNFInstanceProcedure(
 	Notification_event := models.NotificationEventType_PROFILE_CHANGED
 	nfInstanceUri := nrf_context.GetNfInstanceURI(nfInstanceID)
 
-	for _, uri := range uriList {
-		p.Consumer().SendNFStatusNotify(context.Background(), Notification_event, nfInstanceUri, uri, &nfProfiles[0])
+	for _, target := range uriList {
+		notifCtx, pd := p.getNFNotifyCtx(target.TargetNf)
+		if pd != nil {
+			logger.NfmLog.Errorf("UpdateNFInstanceProcedure SendNotification Error: %+v", pd)
+			continue
+		}
+		p.Consumer().SendNFStatusNotify(notifCtx, Notification_event, nfInstanceUri, target.Uri, &nfProfiles[0])
 	}
 	return nf, nil
 }
@@ -529,9 +556,14 @@ func (p *Processor) NFRegisterProcedure(
 		nfInstanceUri := locationHeaderValue
 
 		// receive the rsp from handler
-		for _, uri := range uriList {
-			problemDetails := p.Consumer().SendNFStatusNotify(context.Background(),
-				Notification_event, nfInstanceUri, uri, nfProfile)
+		for _, target := range uriList {
+			notifCtxUpdate, pd := p.getNFNotifyCtx(target.TargetNf)
+			if pd != nil {
+				util.GinProblemJson(c, pd)
+				return
+			}
+			problemDetails := p.Consumer().SendNFStatusNotify(notifCtxUpdate,
+				Notification_event, nfInstanceUri, target.Uri, nfProfile)
 			if problemDetails != nil {
 				util.GinProblemJson(c, problemDetails)
 				return
@@ -551,9 +583,14 @@ func (p *Processor) NFRegisterProcedure(
 		// Add NF Register Conter
 		p.Context().AddNfRegister()
 
-		for _, uri := range uriList {
-			problemDetails := p.Consumer().SendNFStatusNotify(context.Background(),
-				Notification_event, nfInstanceUri, uri, nfProfile)
+		for _, target := range uriList {
+			notifCtxCreate, pd := p.getNFNotifyCtx(target.TargetNf)
+			if pd != nil {
+				util.GinProblemJson(c, pd)
+				return
+			}
+			problemDetails := p.Consumer().SendNFStatusNotify(notifCtxCreate,
+				Notification_event, nfInstanceUri, target.Uri, nfProfile)
 			if problemDetails != nil {
 				util.GinProblemJson(c, problemDetails)
 				return

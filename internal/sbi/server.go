@@ -2,9 +2,12 @@ package sbi
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -53,7 +56,39 @@ func NewServer(nrf ServerNrf, tlsKeyLogPath string) (*Server, error) {
 		logger.InitLog.Errorf("Initialize HTTP server failed: %v", err)
 		return nil, err
 	}
+	if err = s.configureOAuthMutualTLS(); err != nil {
+		return nil, err
+	}
 	return s, nil
+}
+
+func (s *Server) configureOAuthMutualTLS() error {
+	cfg := s.Config()
+	if !cfg.GetOAuth() || cfg.GetSbiScheme() != "https" {
+		return nil
+	}
+
+	rootCertPem, err := os.ReadFile(cfg.GetRootCertPemPath())
+	if err != nil {
+		logger.InitLog.Errorf("Read NRF root cert failed: %v", err)
+		return err
+	}
+
+	clientCAs := x509.NewCertPool()
+	if ok := clientCAs.AppendCertsFromPEM(rootCertPem); !ok {
+		err = fmt.Errorf("append NRF root cert to client CA pool failed")
+		logger.InitLog.Error(err)
+		return err
+	}
+
+	if s.httpServer.TLSConfig == nil {
+		s.httpServer.TLSConfig = &tls.Config{}
+	}
+	s.httpServer.TLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
+	s.httpServer.TLSConfig.ClientCAs = clientCAs
+
+	logger.InitLog.Info("NRF OAuth mTLS enabled: require and verify client certificates")
+	return nil
 }
 
 func (s *Server) GetLocalIp() string {
@@ -128,7 +163,7 @@ func (s *Server) startServer(wg *sync.WaitGroup) {
 	case "http":
 		err = s.httpServer.ListenAndServe()
 	case "https":
-		// TODO: support TLS mutual authentication for OAuth
+		// Mutual TLS for OAuth is configured in configureOAuthMutualTLS().
 		err = s.httpServer.ListenAndServeTLS(
 			cfg.GetNrfCertPemPath(),
 			cfg.GetNrfPrivKeyPath())
