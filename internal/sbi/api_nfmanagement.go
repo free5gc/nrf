@@ -226,7 +226,7 @@ func (s *Server) HTTPGetNFInstances(c *gin.Context) {
 		var err error
 		limit, err = strconv.Atoi(limitParam)
 		if err != nil {
-			logger.NfmLog.Errorln("Error in string conversion: ", limit)
+			logger.NfmLog.Errorln("Error in string conversion: ", limitParam)
 			problemDetails := &models.ProblemDetails{
 				Title:  "Invalid Parameter",
 				Status: http.StatusBadRequest,
