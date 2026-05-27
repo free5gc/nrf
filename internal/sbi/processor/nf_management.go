@@ -487,6 +487,18 @@ func (p *Processor) NFRegisterProcedure(
 	nfProfile *models.NrfNfManagementNfProfile,
 ) {
 	logger.NfmLog.Traceln("[NRF] In NFRegisterProcedure")
+
+	if nfProfile.NfInstanceId == "" || nfProfile.NfType == "" || nfProfile.NfStatus == "" {
+		problemDetails := &models.ProblemDetails{
+			Title:  "Mandatory IE missing",
+			Status: http.StatusBadRequest,
+			Detail: "nfInstanceId, nfType and nfStatus are required",
+			Cause:  "MANDATORY_IE_MISSING",
+		}
+		util.GinProblemJson(c, problemDetails)
+		return
+	}
+
 	var nf models.NrfNfManagementNfProfile
 
 	err := nrf_context.NnrfNFManagementDataModel(&nf, nfProfile)
