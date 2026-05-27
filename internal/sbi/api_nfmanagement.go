@@ -10,7 +10,6 @@
 package sbi
 
 import (
-	"fmt"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -220,34 +219,31 @@ func (s *Server) HTTPGetNFInstances(c *gin.Context) {
 	nfType := c.Query("nf-type")
 	limitParam := c.Query("limit")
 
-	if nfType == "" || limitParam == "" {
-		problemDetail := &models.ProblemDetails{
-			Title:  "nfType or limitParam empty",
-			Status: http.StatusBadRequest,
-			Detail: fmt.Sprintf("nfType: %v, limitParam: %v", nfType, limitParam),
+	// Both nf-type and limit are optional per TS 29.510 (required: false).
+	// Only validate limit when it is actually provided.
+	var limit int
+	if limitParam != "" {
+		var err error
+		limit, err = strconv.Atoi(limitParam)
+		if err != nil {
+			logger.NfmLog.Errorln("Error in string conversion: ", limit)
+			problemDetails := &models.ProblemDetails{
+				Title:  "Invalid Parameter",
+				Status: http.StatusBadRequest,
+				Detail: err.Error(),
+			}
+			util.GinProblemJson(c, problemDetails)
+			return
 		}
-		util.GinProblemJson(c, problemDetail)
-		return
-	}
-	limit, err := strconv.Atoi(limitParam)
-	if err != nil {
-		logger.NfmLog.Errorln("Error in string conversion: ", limit)
-		problemDetails := &models.ProblemDetails{
-			Title:  "Invalid Parameter",
-			Status: http.StatusBadRequest,
-			Detail: err.Error(),
+		if limit < 1 {
+			problemDetails := &models.ProblemDetails{
+				Title:  "Invalid Parameter",
+				Status: http.StatusBadRequest,
+				Detail: "limit must be greater than 0",
+			}
+			util.GinProblemJson(c, problemDetails)
+			return
 		}
-		util.GinProblemJson(c, problemDetails)
-		return
-	}
-	if limit < 1 {
-		problemDetails := &models.ProblemDetails{
-			Title:  "Invalid Parameter",
-			Status: http.StatusBadRequest,
-			Detail: "limit must be greater than 0",
-		}
-		util.GinProblemJson(c, problemDetails)
-		return
 	}
 
 	s.Processor().HandleGetNFInstancesRequest(c, nfType, limit)
