@@ -10,7 +10,6 @@ import (
 	"time"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
-
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
 	"go.mongodb.org/mongo-driver/bson"
@@ -61,7 +60,11 @@ func (p *Processor) HandleGetNFInstanceRequest(c *gin.Context, nfInstanceId stri
 	p.GetNFInstanceProcedure(c, nfInstanceId)
 }
 
-func (p *Processor) HandleNFRegisterRequest(c *gin.Context, nfProfile *models.NrfNfManagementNfProfile, rawProfile []byte) {
+func (p *Processor) HandleNFRegisterRequest(
+	c *gin.Context,
+	nfProfile *models.NrfNfManagementNfProfile,
+	rawProfile []byte,
+) {
 	logger.NfmLog.Infoln("Handle NFRegisterRequest")
 
 	p.NFRegisterProcedure(c, nfProfile, rawProfile)
@@ -392,7 +395,7 @@ func (p *Processor) UpdateNFInstanceProcedure(
 		}
 	}
 
-	//
+	// apply the JSON Patch to the original NF profile
 	currentJSON, err := json.Marshal(nf)
 	if err != nil {
 		logger.NfmLog.Errorf("UpdateNFInstanceProcedure err: %+v", err)
@@ -419,6 +422,8 @@ func (p *Processor) UpdateNFInstanceProcedure(
 			Detail: err.Error(),
 		}
 	}
+
+	// validate the patched NF profile
 	var patchedProfile models.NrfNfManagementNfProfile
 	if err = json.Unmarshal(patchedJSON, &patchedProfile); err != nil {
 		return nil, &models.ProblemDetails{
