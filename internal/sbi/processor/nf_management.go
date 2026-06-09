@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	jsonpatch "github.com/evanphx/json-patch/v5"
+
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
 	"go.mongodb.org/mongo-driver/bson"
@@ -59,10 +61,10 @@ func (p *Processor) HandleGetNFInstanceRequest(c *gin.Context, nfInstanceId stri
 	p.GetNFInstanceProcedure(c, nfInstanceId)
 }
 
-func (p *Processor) HandleNFRegisterRequest(c *gin.Context, nfProfile *models.NrfNfManagementNfProfile) {
+func (p *Processor) HandleNFRegisterRequest(c *gin.Context, nfProfile *models.NrfNfManagementNfProfile, rawProfile []byte) {
 	logger.NfmLog.Infoln("Handle NFRegisterRequest")
 
-	p.NFRegisterProcedure(c, nfProfile)
+	p.NFRegisterProcedure(c, nfProfile, rawProfile)
 }
 
 func (p *Processor) HandleUpdateNFInstanceRequest(c *gin.Context, patchJSON []byte, nfInstanceID string) {
@@ -370,6 +372,70 @@ func (p *Processor) UpdateNFInstanceProcedure(
 	collName := nrf_context.NfProfileCollName
 	filter := bson.M{"nfInstanceId": nfInstanceID}
 
+	// read the original NF profile from MongoDB
+	nf, err := mongoapi.RestfulAPIGetOne(collName, filter)
+	if err != nil {
+		logger.NfmLog.Errorf("UpdateNFInstanceProcedure err: %+v", err)
+		return nil, &models.ProblemDetails{
+			Title:  "System failure",
+			Status: http.StatusInternalServerError,
+			Detail: err.Error(),
+			Cause:  "SYSTEM_FAILURE",
+		}
+	}
+	if nf == nil {
+		logger.NfmLog.Warnf("NFProfile[%s] not found", nfInstanceID)
+		return nil, &models.ProblemDetails{
+			Status: http.StatusNotFound,
+			Cause:  "RESOURCE_URI_STRUCTURE_NOT_FOUND",
+			Detail: fmt.Sprintf("NFProfile[%s] not found", nfInstanceID),
+		}
+	}
+
+	//
+	currentJSON, err := json.Marshal(nf)
+	if err != nil {
+		logger.NfmLog.Errorf("UpdateNFInstanceProcedure err: %+v", err)
+		return nil, &models.ProblemDetails{
+			Title:  "System failure",
+			Status: http.StatusInternalServerError,
+			Detail: err.Error(),
+			Cause:  "SYSTEM_FAILURE",
+		}
+	}
+	patch, err := jsonpatch.DecodePatch(patchJSON)
+	if err != nil {
+		return nil, &models.ProblemDetails{
+			Title:  "Malformed request syntax",
+			Status: http.StatusBadRequest,
+			Detail: err.Error(),
+		}
+	}
+	patchedJSON, err := patch.Apply(currentJSON)
+	if err != nil {
+		return nil, &models.ProblemDetails{
+			Title:  "Malformed request syntax",
+			Status: http.StatusBadRequest,
+			Detail: err.Error(),
+		}
+	}
+	var patchedProfile models.NrfNfManagementNfProfile
+	if err = json.Unmarshal(patchedJSON, &patchedProfile); err != nil {
+		return nil, &models.ProblemDetails{
+			Title:  "Malformed request syntax",
+			Status: http.StatusBadRequest,
+			Detail: err.Error(),
+		}
+	}
+	if err := validateNfProfileJSON(patchedJSON, &patchedProfile); err != nil {
+		logger.NfmLog.Warnf("Reject invalid NF profile patch result: %v", err)
+		return nil, &models.ProblemDetails{
+			Title:  "Malformed request syntax",
+			Status: http.StatusBadRequest,
+			Detail: err.Error(),
+		}
+	}
+
 	if err := mongoapi.RestfulAPIJSONPatch(collName, filter, patchJSON); err != nil {
 		logger.NfmLog.Errorf("UpdateNFInstanceProcedure err: %+v", err)
 		return nil, &models.ProblemDetails{
@@ -379,7 +445,7 @@ func (p *Processor) UpdateNFInstanceProcedure(
 		}
 	}
 
-	nf, err := mongoapi.RestfulAPIGetOne(collName, filter)
+	nf, err = mongoapi.RestfulAPIGetOne(collName, filter)
 	if err != nil {
 		logger.NfmLog.Errorf("UpdateNFInstanceProcedure err: %+v", err)
 		return nil, &models.ProblemDetails{
@@ -485,8 +551,19 @@ func (p *Processor) GetNFInstanceProcedure(c *gin.Context, nfInstanceID string) 
 func (p *Processor) NFRegisterProcedure(
 	c *gin.Context,
 	nfProfile *models.NrfNfManagementNfProfile,
+	rawProfile []byte,
 ) {
 	logger.NfmLog.Traceln("[NRF] In NFRegisterProcedure")
+
+	if err := validateNfProfileJSON(rawProfile, nfProfile); err != nil {
+		problemDetails := &models.ProblemDetails{
+			Title:  "Malformed request syntax",
+			Status: http.StatusBadRequest,
+			Detail: err.Error(),
+		}
+		util.GinProblemJson(c, problemDetails)
+		return
+	}
 
 	if nfProfile.NfInstanceId == "" || nfProfile.NfType == "" || nfProfile.NfStatus == "" {
 		problemDetails := &models.ProblemDetails{
@@ -503,6 +580,16 @@ func (p *Processor) NFRegisterProcedure(
 
 	err := nrf_context.NnrfNFManagementDataModel(&nf, nfProfile)
 	if err != nil {
+		problemDetails := &models.ProblemDetails{
+			Title:  "Malformed request syntax",
+			Status: http.StatusBadRequest,
+			Detail: err.Error(),
+		}
+		util.GinProblemJson(c, problemDetails)
+		return
+	}
+
+	if err := validateNfProfile(&nf); err != nil {
 		problemDetails := &models.ProblemDetails{
 			Title:  "Malformed request syntax",
 			Status: http.StatusBadRequest,
