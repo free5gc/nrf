@@ -4,6 +4,7 @@ go 1.26.2
 
 require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
+	github.com/evanphx/json-patch/v5 v5.9.0
 	github.com/free5gc/openapi v1.2.4
 	github.com/free5gc/util v1.3.2
 	github.com/gin-gonic/gin v1.10.0
@@ -16,6 +17,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/urfave/cli/v2 v2.27.7
 	go.mongodb.org/mongo-driver v1.17.1
+	golang.org/x/oauth2 v0.27.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -28,7 +30,6 @@ require (
 	github.com/cloudwego/iasm v0.2.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/evanphx/json-patch/v5 v5.9.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/free5gc/aper v1.1.1 // indirect
 	github.com/free5gc/nas v1.2.3 // indirect
@@ -75,7 +76,6 @@ require (
 	golang.org/x/arch v0.8.0 // indirect
 	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/net v0.47.0 // indirect
-	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
