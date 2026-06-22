@@ -95,6 +95,16 @@ func TestValidateNfProfileRejectsExplicitZeroHeartbeat(t *testing.T) {
 	}
 }
 
+func TestValidateNfProfileAcceptsDockerComposeFQDNAlias(t *testing.T) {
+	profile := validTestNfProfile()
+	profile.Ipv4Addresses = []string{"nssf.free5gc.org"}
+	profile.NfServices[0].IpEndPoints[0].Ipv4Address = "nssf.free5gc.org"
+
+	if err := validateTestProfile(t, profile); err != nil {
+		t.Fatalf("expected Docker Compose FQDN alias to be accepted, got error: %v", err)
+	}
+}
+
 func TestValidateNfProfileRejectsInvalidEndpointIP(t *testing.T) {
 	profile := validTestNfProfile()
 	profile.NfServices[0].IpEndPoints[0].Ipv4Address = "999.0.0.1"
