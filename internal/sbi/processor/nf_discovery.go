@@ -16,6 +16,7 @@ import (
 	nrf_context "github.com/free5gc/nrf/internal/context"
 	"github.com/free5gc/nrf/internal/logger"
 	"github.com/free5gc/nrf/internal/util"
+	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/openapi/models"
 	timedecode "github.com/free5gc/util/mapstruct"
 	"github.com/free5gc/util/mongoapi"
@@ -198,7 +199,9 @@ func (p *Processor) NFDiscoveryProcedure(c *gin.Context, queryParameters url.Val
 			}
 		}
 	}
-	validityPeriod := 100
+	// Cache lifetime tracks the suspension deadline: a longer one would let consumers keep routing
+	// to instances the NRF already suspended.
+	validityPeriod := factory.NrfConfig.GetHeartbeatSuspendDeadline()
 	// Build SearchResult model
 	searchResult := &models.Nrf_NFDisc_SearchResult{
 		ValidityPeriod: int32(validityPeriod),
@@ -212,6 +215,10 @@ func buildFilter(queryParameters url.Values) (bson.M, error) {
 	filter := bson.M{
 		"$and": []bson.M{},
 	}
+
+	// Only REGISTERED instances can be discovered (TS 29.510 clause 6.1.6.3.7).
+	filter["$and"] = append(filter["$and"].([]bson.M),
+		bson.M{"nfStatus": string(models.Nrf_NFMgmt_NFStatus_REGISTERED)})
 
 	// [Query-1] target-nf-type
 	targetNfType := queryParameters["target-nf-type"][0]
