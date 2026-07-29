@@ -288,3 +288,11 @@ func validNfType(nfType models.Nrf_NFMgmt_NFType) bool {
 		return false
 	}
 }
+
+// validateRegistration validates an NFRegister body. heartBeatTimer is left out: the NRF assigns
+// it (nnrfNFManagementCondition) and ignores the NF's proposal.
+func validateRegistration(nfProfile *models.Nrf_NFMgmt_NFProfile) error {
+	proposal := *nfProfile
+	proposal.HeartBeatTimer = 0
+	return validateNfProfile(&proposal)
+}
