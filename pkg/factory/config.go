@@ -132,6 +132,9 @@ type Logger struct {
 
 func (c *Configuration) validate() (bool, error) {
 	if c.NfInstanceId == "" {
+		if c.Sbi != nil && c.Sbi.OAuth {
+			return false, govalidator.Errors{errors.New("nfInstanceId is required when OAuth is enabled")}
+		}
 		c.NfInstanceId = uuid.New().String()
 	}
 

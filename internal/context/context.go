@@ -25,13 +25,17 @@ import (
 )
 
 type NRFContext struct {
-	NrfNfProfile     models.Nrf_NFMgmt_NFProfile
-	Nrf_NfInstanceID string
-	RootPrivKey      *rsa.PrivateKey
-	RootCert         *x509.Certificate
-	NrfPrivKey       *rsa.PrivateKey
-	NrfPubKey        *rsa.PublicKey
-	NrfCert          *x509.Certificate
+	NrfNfProfile models.Nrf_NFMgmt_NFProfile
+	RootPrivKey  *rsa.PrivateKey
+	RootCert     *x509.Certificate
+	NrfPrivKey   *rsa.PrivateKey
+	NrfPubKey    *rsa.PublicKey
+	NrfCert      *x509.Certificate
+}
+
+type accessTokenClaims struct {
+	Scope string `json:"scope"`
+	jwt.RegisteredClaims
 }
 
 const (
@@ -114,7 +118,7 @@ func InitNrfContext() error {
 		nrfCertPath := config.GetNrfCertPemPath()
 		logger.InitLog.Infof("generate new NRF cert")
 		nrfContext.NrfCert, err = oauth.GenerateCertificate(
-			string(nrfContext.NrfNfProfile.NfType), nrfContext.Nrf_NfInstanceID,
+			string(nrfContext.NrfNfProfile.NfType), nrfContext.NrfNfProfile.NfInstanceId,
 			nrfCertPath, nrfContext.NrfPubKey, nrfContext.RootCert, nrfContext.RootPrivKey)
 		if err != nil {
 			return errors.Wrapf(err, "NRF init")
@@ -222,7 +226,10 @@ func (context *NRFContext) AuthorizationCheck(token string, serviceName models.N
 	if !factory.NrfConfig.GetOAuth() {
 		return nil
 	}
-	err := oauth.VerifyOAuth(token, string(serviceName), factory.NrfConfig.GetNrfCertPemPath())
+	err := oauth.VerifyOAuth(token, string(serviceName), oauth.AudiencePolicy{
+		NFInstanceID: context.NrfNfProfile.NfInstanceId,
+		NFType:       context.NrfNfProfile.NfType,
+	}, context.NrfNfProfile.NfInstanceId, factory.NrfConfig.GetNrfCertPemPath())
 	if err != nil {
 		logger.AccTokenLog.Warningln("AuthorizationCheck:", err)
 		return err
@@ -234,6 +241,27 @@ func (context *NRFContext) AuthorizationCheck(token string, serviceName models.N
 func (ctx *NRFContext) GetTokenCtx(
 	serviceName models.Nrf_NFMgmt_ServiceName, targetNF models.Nrf_NFMgmt_NFType,
 ) (context.Context, *models.ProblemDetails, error) {
+	return ctx.getTokenCtx(serviceName, string(targetNF))
+}
+
+func (ctx *NRFContext) GetTokenCtxForNFInstance(
+	serviceName models.Nrf_NFMgmt_ServiceName, targetNFInstanceID string,
+) (context.Context, *models.ProblemDetails, error) {
+	if factory.NrfConfig.GetOAuth() {
+		targetID, err := uuid.Parse(strings.TrimSpace(targetNFInstanceID))
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "invalid target NF instance ID")
+		}
+		if targetID.Version() != 4 {
+			return nil, nil, errors.New("invalid target NF instance ID: UUID must be version 4")
+		}
+	}
+	return ctx.getTokenCtx(serviceName, targetNFInstanceID)
+}
+
+func (ctx *NRFContext) getTokenCtx(
+	serviceName models.Nrf_NFMgmt_ServiceName, audience string,
+) (context.Context, *models.ProblemDetails, error) {
 	if !factory.NrfConfig.GetOAuth() {
 		return context.TODO(), nil, nil
 	}
@@ -241,19 +269,28 @@ func (ctx *NRFContext) GetTokenCtx(
 		pd := &models.ProblemDetails{Status: 500, Cause: "NRF_PRIVATE_KEY_MISSING"}
 		return nil, pd, errors.New("NRF private key not initialized")
 	}
+	if strings.TrimSpace(string(serviceName)) == "" {
+		pd := &models.ProblemDetails{Status: 500, Cause: "OAUTH_SCOPE_MISSING"}
+		return nil, pd, errors.New("OAuth service name is empty")
+	}
+	if strings.TrimSpace(audience) == "" {
+		pd := &models.ProblemDetails{Status: 500, Cause: "OAUTH_AUDIENCE_MISSING"}
+		return nil, pd, errors.New("OAuth target NF type is empty")
+	}
 
-	var expiration int32 = 1000
-	now := int32(time.Now().Unix())
+	const expirationSeconds int32 = 1000
+	now := time.Now()
+	expiresAt := now.Add(time.Duration(expirationSeconds) * time.Second)
 
-	claims := models.Nrf_AccTok_AccessTokenClaims{
-		Iss:   ctx.NrfNfProfile.NfInstanceId,
-		Sub:   ctx.NrfNfProfile.NfInstanceId,
-		Aud:   targetNF,
+	claims := accessTokenClaims{
 		Scope: string(serviceName),
-		Exp:   now + expiration,
 		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt: jwt.NewNumericDate(time.Unix(int64(now), 0)),
-			ID:       uuid.New().String(),
+			Issuer:    ctx.NrfNfProfile.NfInstanceId,
+			Subject:   ctx.NrfNfProfile.NfInstanceId,
+			Audience:  jwt.ClaimStrings{audience},
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+			IssuedAt:  jwt.NewNumericDate(now),
+			ID:        uuid.New().String(),
 		},
 	}
 	token := jwt.NewWithClaims(jwt.GetSigningMethod("RS512"), claims)
@@ -266,7 +303,7 @@ func (ctx *NRFContext) GetTokenCtx(
 	tok := oauth2.StaticTokenSource(&oauth2.Token{
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
-		Expiry:      time.Unix(int64(now+expiration), 0),
+		Expiry:      expiresAt,
 	})
 	return context.WithValue(context.Background(), openapi.ContextOAuth2, tok), nil, nil
 }
