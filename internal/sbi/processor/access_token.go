@@ -308,34 +308,45 @@ func (p *Processor) AccessTokenScopeCheck(req models.Nrf_AccTok_AccessTokenReq) 
 	if reqTargetNfType != "" && producerNfType != reqTargetNfType {
 		return &models.Nrf_AccTok_AccessTokenErr{Error: "invalid_client"}
 	}
-	nfServices := nfProfile.NfServices
-
-	scopes := strings.Fields(req.Scope)
-
-	for _, reqNfService := range scopes {
-		found := false
-		for _, nfService := range nfServices {
-			if string(nfService.ServiceName) == reqNfService {
-				if len(nfService.AllowedNfTypes) == 0 {
-					found = true
-					break
-				} else {
-					for _, nfType := range nfService.AllowedNfTypes {
-						if string(nfType) == reqNfType {
-							found = true
-							break
-						}
-					}
-					break
-				}
-			}
-		}
-		if !found {
-			logger.AccTokenLog.Errorln("Certificate verify error: Request out of scope (" + reqNfService + ")")
-			return &models.Nrf_AccTok_AccessTokenErr{
-				Error: "invalid_scope",
-			}
-		}
+	if rejectedScope, ok := firstRejectedServiceScope(
+		nfProfile.NfServices,
+		models.Nrf_NFMgmt_NFType(reqNfType),
+		req.Scope,
+	); ok {
+		logger.AccTokenLog.Errorln("Certificate verify error: Request out of scope (" + rejectedScope + ")")
+		return &models.Nrf_AccTok_AccessTokenErr{Error: "invalid_scope"}
 	}
 	return nil
+}
+
+func firstRejectedServiceScope(
+	nfServices []models.Nrf_NFMgmt_NFService,
+	requesterNfType models.Nrf_NFMgmt_NFType,
+	requestedScopes string,
+) (string, bool) {
+	for _, requestedScope := range strings.Fields(requestedScopes) {
+		allowed := false
+		for _, nfService := range nfServices {
+			if string(nfService.ServiceName) != requestedScope {
+				continue
+			}
+
+			// A known service with no allowlist is intentionally unrestricted.
+			if len(nfService.AllowedNfTypes) == 0 {
+				allowed = true
+			} else {
+				for _, nfType := range nfService.AllowedNfTypes {
+					if nfType == requesterNfType {
+						allowed = true
+						break
+					}
+				}
+			}
+			break
+		}
+		if !allowed {
+			return requestedScope, true
+		}
+	}
+	return "", false
 }
