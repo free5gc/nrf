@@ -68,14 +68,17 @@ func InitNrfContext() error {
 		config.Info.Version, config.Info.Description)
 	configuration := config.Configuration
 
-	nrfContext.NrfNfProfile.NfInstanceId = config.GetNfInstanceId()
+	nrfInstanceID, err := resolveNrfInstanceID(config)
+	if err != nil {
+		return errors.Wrap(err, "NRF init")
+	}
+	nrfContext.NrfNfProfile.NfInstanceId = nrfInstanceID
 	nrfContext.NrfNfProfile.NfType = models.Nrf_NFMgmt_NFType_NRF
 	nrfContext.NrfNfProfile.NfStatus = models.Nrf_NFMgmt_NFStatus_REGISTERED
 
 	serviceNameList := configuration.ServiceNameList
 
 	if config.GetOAuth() {
-		var err error
 		rootPrivKeyPath := config.GetRootPrivKeyPath()
 		nrfContext.RootPrivKey, err = oauth.ParsePrivateKeyFromPEM(rootPrivKeyPath)
 		if err != nil {
@@ -128,6 +131,43 @@ func InitNrfContext() error {
 	NFServices := InitNFService(serviceNameList, config.Info.Version)
 	nrfContext.NrfNfProfile.NfServices = NFServices
 	return nil
+}
+
+func resolveNrfInstanceID(config *factory.Config) (string, error) {
+	configuredID := strings.TrimSpace(config.GetNfInstanceId())
+	if configuredID != "" {
+		id, err := uuid.Parse(configuredID)
+		if err != nil || id.Version() != 4 {
+			return "", errors.New("configured NRF instance ID must be a UUID v4")
+		}
+		return configuredID, nil
+	}
+
+	if config.GetOAuth() {
+		certPath := config.GetNrfCertPemPath()
+		if _, err := os.Stat(certPath); err == nil {
+			cert, parseErr := oauth.ParseCertFromPEM(certPath)
+			if parseErr != nil {
+				return "", errors.Wrap(parseErr, "parse existing NRF certificate")
+			}
+			if len(cert.URIs) == 0 {
+				instanceID := uuid.New().String()
+				logger.InitLog.Warnf(
+					"Existing NRF certificate has no URI SAN; generate identity %s and migrate certificate",
+					instanceID)
+				return instanceID, nil
+			}
+			instanceID, certErr := oauth.NFInstanceIDFromCertificate(certPath)
+			if certErr != nil {
+				return "", errors.Wrap(certErr, "recover NRF instance ID from certificate")
+			}
+			return instanceID, nil
+		} else if !os.IsNotExist(err) {
+			return "", errors.Wrap(err, "inspect NRF certificate")
+		}
+	}
+
+	return uuid.New().String(), nil
 }
 
 func InitNFService(srvNameList []string, version string) []models.Nrf_NFMgmt_NFService {
