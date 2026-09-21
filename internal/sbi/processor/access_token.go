@@ -1,7 +1,9 @@
 package processor
 
 import (
+	"crypto/rsa"
 	"crypto/x509"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -21,6 +23,13 @@ import (
 	"github.com/free5gc/util/metrics/sbi"
 	"github.com/free5gc/util/mongoapi"
 )
+
+const accessTokenLifetime = 1000 * time.Second
+
+type accessTokenClaims struct {
+	Scope string `json:"scope"`
+	jwt.RegisteredClaims
+}
 
 func (p *Processor) HandleAccessTokenRequest(c *gin.Context, accessTokenReq models.Nrf_AccTok_AccessTokenReq) {
 	// Param of AccessTokenRsp
@@ -50,35 +59,15 @@ func (p *Processor) AccessTokenProcedure(request models.Nrf_AccTok_AccessTokenRe
 ) {
 	logger.AccTokenLog.Debugln("In AccessTokenProcedure")
 
-	var (
-		expiration = int32(1000)
-		tokenType  = "Bearer"
-	)
-	scope := request.Scope
-	now := time.Now()
-	nowNum := int32(now.Unix())
-
 	errResponse := p.AccessTokenScopeCheck(request)
 	if errResponse != nil {
 		logger.AccTokenLog.Errorf("AccessTokenScopeCheck error: %v", errResponse.Error)
 		return nil, errResponse
 	}
 
-	// Create AccessToken
 	nrfCtx := nrf_context.GetSelf()
-	accessTokenClaims := models.Nrf_AccTok_AccessTokenClaims{
-		Iss:              nrfCtx.Nrf_NfInstanceID,    // NF instance id of the NRF
-		Sub:              request.NfInstanceId,       // nfInstanceId of service consumer
-		Aud:              request.TargetNfInstanceId, // nfInstanceId of service producer
-		Scope:            request.Scope,              // TODO: the name of the NF services for which the
-		Exp:              nowNum + expiration,        // access_token is authorized for use
-		RegisteredClaims: jwt.RegisteredClaims{},
-	}
-	accessTokenClaims.IssuedAt = &jwt.NumericDate{Time: now}
-
-	// Use NRF private key to sign AccessToken
-	token := jwt.NewWithClaims(jwt.GetSigningMethod("RS512"), accessTokenClaims)
-	accessToken, err := token.SignedString(nrfCtx.NrfPrivKey)
+	accessToken, err := issueAccessToken(
+		request, nrfCtx.NrfNfProfile.NfInstanceId, nrfCtx.NrfPrivKey, time.Now())
 	if err != nil {
 		logger.AccTokenLog.Warnln("Signed string error: ", err)
 		return nil, &models.Nrf_AccTok_AccessTokenErr{
@@ -88,38 +77,89 @@ func (p *Processor) AccessTokenProcedure(request models.Nrf_AccTok_AccessTokenRe
 
 	response := &models.Nrf_AccTok_AccessTokenRsp{
 		Access_token: accessToken,
-		Token_type:   tokenType,
-		Expires_in:   expiration,
-		Scope:        scope,
+		Token_type:   "Bearer",
+		Expires_in:   int32(accessTokenLifetime / time.Second),
+		Scope:        request.Scope,
 	}
 	return response, nil
+}
+
+func issueAccessToken(
+	request models.Nrf_AccTok_AccessTokenReq,
+	issuer string,
+	privateKey *rsa.PrivateKey,
+	now time.Time,
+) (string, error) {
+	if strings.TrimSpace(issuer) == "" {
+		return "", errors.New("NRF issuer is empty")
+	}
+	if privateKey == nil {
+		return "", errors.New("NRF private key is nil")
+	}
+	audience := tokenAudience(request)
+	if strings.TrimSpace(audience) == "" {
+		return "", errors.New("access token audience is empty")
+	}
+
+	claims := accessTokenClaims{
+		Scope: request.Scope,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    issuer,
+			Subject:   request.NfInstanceId,
+			Audience:  jwt.ClaimStrings{audience},
+			ExpiresAt: jwt.NewNumericDate(now.Add(accessTokenLifetime)),
+			IssuedAt:  jwt.NewNumericDate(now),
+			ID:        uuid.New().String(),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+	return token.SignedString(privateKey)
+}
+
+func tokenAudience(request models.Nrf_AccTok_AccessTokenReq) string {
+	if request.TargetNfInstanceId != "" {
+		return request.TargetNfInstanceId
+	}
+	return string(request.TargetNfType)
+}
+
+func validateAccessTokenRequest(req models.Nrf_AccTok_AccessTokenReq) *models.Nrf_AccTok_AccessTokenErr {
+	if req.Grant_type != "client_credentials" {
+		return &models.Nrf_AccTok_AccessTokenErr{Error: "unsupported_grant_type"}
+	}
+	if strings.TrimSpace(req.NfInstanceId) == "" || strings.TrimSpace(req.Scope) == "" {
+		return &models.Nrf_AccTok_AccessTokenErr{Error: "invalid_request"}
+	}
+	if !isUUIDv4(req.NfInstanceId) {
+		return &models.Nrf_AccTok_AccessTokenErr{Error: "invalid_client"}
+	}
+
+	if req.TargetNfInstanceId != "" {
+		if !isUUIDv4(req.TargetNfInstanceId) {
+			return &models.Nrf_AccTok_AccessTokenErr{Error: "invalid_request"}
+		}
+		return nil
+	}
+	if strings.TrimSpace(string(req.NfType)) == "" || strings.TrimSpace(string(req.TargetNfType)) == "" {
+		return &models.Nrf_AccTok_AccessTokenErr{Error: "invalid_request"}
+	}
+	return nil
+}
+
+func isUUIDv4(value string) bool {
+	id, err := uuid.Parse(value)
+	return err == nil && id.Version() == 4
 }
 
 func (p *Processor) AccessTokenScopeCheck(req models.Nrf_AccTok_AccessTokenReq) *models.Nrf_AccTok_AccessTokenErr {
 	// Check with nf profile
 	collName := nrf_context.NfProfileCollName
-	reqGrantType := req.Grant_type
-	reqNfType := strings.ToUpper(string(req.NfType))
-	reqTargetNfType := strings.ToUpper(string(req.TargetNfType))
+	reqNfType := string(req.NfType)
+	reqTargetNfType := string(req.TargetNfType)
 	reqNfInstanceId := req.NfInstanceId
 
-	if reqGrantType != "client_credentials" {
-		return &models.Nrf_AccTok_AccessTokenErr{
-			Error: "unsupported_grant_type",
-		}
-	}
-
-	if reqNfType == "" || reqTargetNfType == "" || reqNfInstanceId == "" {
-		return &models.Nrf_AccTok_AccessTokenErr{
-			Error: "invalid_request",
-		}
-	}
-
-	if _, err := uuid.Parse(reqNfInstanceId); err != nil {
-		logger.AccTokenLog.Errorf("invalid nfInstanceId format: %v", err)
-		return &models.Nrf_AccTok_AccessTokenErr{
-			Error: "invalid_client",
-		}
+	if errResponse := validateAccessTokenRequest(req); errResponse != nil {
+		return errResponse
 	}
 
 	logger.AccTokenLog.Debugf("reqNfInstanceId: %s", reqNfInstanceId)
@@ -142,11 +182,13 @@ func (p *Processor) AccessTokenScopeCheck(req models.Nrf_AccTok_AccessTokenReq) 
 		}
 	}
 
-	if strings.ToUpper(string(nfProfile.NfType)) != reqNfType {
+	consumerNfType := string(nfProfile.NfType)
+	if reqNfType != "" && consumerNfType != reqNfType {
 		return &models.Nrf_AccTok_AccessTokenErr{
 			Error: "invalid_client",
 		}
 	}
+	reqNfType = consumerNfType
 
 	// Verify NF's certificate with root certificate
 	roots := x509.NewCertPool()
@@ -204,13 +246,15 @@ func (p *Processor) AccessTokenScopeCheck(req models.Nrf_AccTok_AccessTokenReq) 
 		}
 	}
 
-	// Check scope
-	if reqTargetNfType == "NRF" {
-		if req.Scope == "" {
-			return nil
+	// Check scope for this NRF instance or a type-level NRF target.
+	targetsThisNRF := req.TargetNfInstanceId == nrfCtx.NrfNfProfile.NfInstanceId ||
+		(req.TargetNfInstanceId == "" && reqTargetNfType == string(models.Nrf_NFMgmt_NFType_NRF))
+	if targetsThisNRF {
+		if reqTargetNfType != "" && reqTargetNfType != string(models.Nrf_NFMgmt_NFType_NRF) {
+			return &models.Nrf_AccTok_AccessTokenErr{Error: "invalid_client"}
 		}
 
-		scopes := strings.Split(req.Scope, " ")
+		scopes := strings.Fields(req.Scope)
 
 		nrfValidScopes := factory.NrfConfig.GetServiceNameList()
 
@@ -235,7 +279,11 @@ func (p *Processor) AccessTokenScopeCheck(req models.Nrf_AccTok_AccessTokenReq) 
 		return nil
 	}
 
-	filter = bson.M{"nfType": reqTargetNfType}
+	if req.TargetNfInstanceId != "" {
+		filter = bson.M{"nfInstanceId": req.TargetNfInstanceId}
+	} else {
+		filter = bson.M{"nfType": reqTargetNfType}
+	}
 	producerNfInfo, err := mongoapi.RestfulAPIGetOne(collName, filter)
 	if err != nil {
 		logger.AccTokenLog.Errorln("mongoapi.RestfulApiGetOne error: " + err.Error())
@@ -259,34 +307,49 @@ func (p *Processor) AccessTokenScopeCheck(req models.Nrf_AccTok_AccessTokenReq) 
 			Error: "invalid_client",
 		}
 	}
-	nfServices := nfProfile.NfServices
-
-	scopes := strings.Split(req.Scope, " ")
-
-	for _, reqNfService := range scopes {
-		found := false
-		for _, nfService := range nfServices {
-			if string(nfService.ServiceName) == reqNfService {
-				if len(nfService.AllowedNfTypes) == 0 {
-					found = true
-					break
-				} else {
-					for _, nfType := range nfService.AllowedNfTypes {
-						if string(nfType) == reqNfType {
-							found = true
-							break
-						}
-					}
-					break
-				}
-			}
-		}
-		if !found {
-			logger.AccTokenLog.Errorln("Certificate verify error: Request out of scope (" + reqNfService + ")")
-			return &models.Nrf_AccTok_AccessTokenErr{
-				Error: "invalid_scope",
-			}
-		}
+	producerNfType := string(nfProfile.NfType)
+	if reqTargetNfType != "" && producerNfType != reqTargetNfType {
+		return &models.Nrf_AccTok_AccessTokenErr{Error: "invalid_client"}
+	}
+	if rejectedScope, ok := firstRejectedServiceScope(
+		nfProfile.NfServices,
+		models.Nrf_NFMgmt_NFType(reqNfType),
+		req.Scope,
+	); ok {
+		logger.AccTokenLog.Errorln("Certificate verify error: Request out of scope (" + rejectedScope + ")")
+		return &models.Nrf_AccTok_AccessTokenErr{Error: "invalid_scope"}
 	}
 	return nil
+}
+
+func firstRejectedServiceScope(
+	nfServices []models.Nrf_NFMgmt_NFService,
+	requesterNfType models.Nrf_NFMgmt_NFType,
+	requestedScopes string,
+) (string, bool) {
+	for _, requestedScope := range strings.Fields(requestedScopes) {
+		allowed := false
+		for _, nfService := range nfServices {
+			if string(nfService.ServiceName) != requestedScope {
+				continue
+			}
+
+			// A known service with no allowlist is intentionally unrestricted.
+			if len(nfService.AllowedNfTypes) == 0 {
+				allowed = true
+			} else {
+				for _, nfType := range nfService.AllowedNfTypes {
+					if nfType == requesterNfType {
+						allowed = true
+						break
+					}
+				}
+			}
+			break
+		}
+		if !allowed {
+			return requestedScope, true
+		}
+	}
+	return "", false
 }

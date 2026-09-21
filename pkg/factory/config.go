@@ -83,7 +83,9 @@ type Logger struct {
 }
 
 func (c *Configuration) validate() (bool, error) {
-	if c.NfInstanceId == "" {
+	// OAuth-enabled NRF identity is resolved during context initialization so
+	// it can be recovered from an existing NRF certificate URI SAN.
+	if c.NfInstanceId == "" && (c.Sbi == nil || !c.Sbi.OAuth) {
 		c.NfInstanceId = uuid.New().String()
 	}
 
@@ -146,7 +148,8 @@ func (c *Config) GetNfInstanceId() string {
 		return c.Configuration.NfInstanceId
 	}
 
-	if err := uuid.Validate(nfInstanceId); err != nil {
+	id, err := uuid.Parse(nfInstanceId)
+	if err != nil || id.Version() != 4 {
 		logger.CfgLog.Errorf("Env var \"%s\" is not a valid uuid, "+
 			"fallback on configuration nfInstanceId : %s", NrfDefaultNfInstanceIdEnvVar, c.Configuration.NfInstanceId)
 		return c.Configuration.NfInstanceId
@@ -162,11 +165,12 @@ type Sbi struct {
 	RegisterIPv4 string `yaml:"registerIPv4,omitempty" valid:"host,optional"`
 	// IP that is serviced or registered at another NRF.
 	// IPv6Addr  string `yaml:"ipv6Addr,omitempty"`
-	BindingIPv4 string `yaml:"bindingIPv4,omitempty" valid:"host,required"` // IP used to run the server in the node.
-	Port        int    `yaml:"port,omitempty" valid:"port,optional"`
-	Cert        *Cert  `yaml:"cert,omitempty" valid:"optional"`
-	RootCert    *Cert  `yaml:"rootcert,omitempty" valid:"optional"`
-	OAuth       bool   `yaml:"oauth,omitempty" valid:"optional"`
+	BindingIPv4    string `yaml:"bindingIPv4,omitempty" valid:"host,required"` // IP used to run the server in the node.
+	Port           int    `yaml:"port,omitempty" valid:"port,optional"`
+	Cert           *Cert  `yaml:"cert,omitempty" valid:"optional"`
+	RootCert       *Cert  `yaml:"rootcert,omitempty" valid:"optional"`
+	NfCertBasePath string `yaml:"nfCertBasePath,omitempty" valid:"optional"`
+	OAuth          bool   `yaml:"oauth,omitempty" valid:"optional"`
 }
 
 func (s *Sbi) validate() (bool, error) {
@@ -393,6 +397,9 @@ func (c *Config) GetNrfCertPemPath() string {
 func (c *Config) GetCertBasePath() string {
 	c.RLock()
 	defer c.RUnlock()
+	if c.Configuration != nil && c.Configuration.Sbi != nil && c.Configuration.Sbi.NfCertBasePath != "" {
+		return c.Configuration.Sbi.NfCertBasePath
+	}
 	dir, _ := filepath.Split(c.GetNrfCertPemPath())
 	return dir
 }
