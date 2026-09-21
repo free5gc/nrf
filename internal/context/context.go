@@ -118,11 +118,9 @@ func InitNrfContext() error {
 		}
 		nrfContext.NrfPubKey = &nrfContext.NrfPrivKey.PublicKey
 
-		nrfCertPath := config.GetNrfCertPemPath()
-		logger.InitLog.Infof("generate new NRF cert")
-		nrfContext.NrfCert, err = oauth.GenerateCertificate(
-			string(nrfContext.NrfNfProfile.NfType), nrfContext.NrfNfProfile.NfInstanceId,
-			nrfCertPath, nrfContext.NrfPubKey, nrfContext.RootCert, nrfContext.RootPrivKey)
+		nrfContext.NrfCert, err = loadOrGenerateNRFCertificate(
+			config.GetNrfCertPemPath(), nrfContext.NrfNfProfile.NfInstanceId,
+			nrfContext.NrfPrivKey, nrfContext.RootCert, nrfContext.RootPrivKey)
 		if err != nil {
 			return errors.Wrapf(err, "NRF init")
 		}
@@ -168,6 +166,68 @@ func resolveNrfInstanceID(config *factory.Config) (string, error) {
 	}
 
 	return uuid.New().String(), nil
+}
+
+func loadOrGenerateNRFCertificate(
+	certPath, instanceID string,
+	privateKey *rsa.PrivateKey,
+	rootCert *x509.Certificate,
+	rootPrivateKey *rsa.PrivateKey,
+) (*x509.Certificate, error) {
+	cert, err := oauth.ParseCertFromPEM(certPath)
+	if err == nil && len(cert.URIs) != 0 {
+		certificateInstanceID, identityErr := oauth.NFInstanceIDFromCertificate(certPath)
+		if identityErr != nil {
+			return nil, errors.Wrap(identityErr, "validate NRF certificate identity")
+		}
+		if certificateInstanceID != instanceID {
+			return nil, errors.Errorf(
+				"NRF certificate instance ID %q does not match configured instance ID %q",
+				certificateInstanceID, instanceID)
+		}
+		if validationErr := validateNRFCertificate(cert, privateKey, rootCert, time.Now()); validationErr != nil {
+			return nil, validationErr
+		}
+		logger.InitLog.Infof("Reuse NRF identity certificate: %s", certPath)
+		return cert, nil
+	}
+
+	if err != nil && !os.IsNotExist(errors.Cause(err)) {
+		return nil, errors.Wrap(err, "parse NRF certificate")
+	}
+
+	if makeErr := makeDir(certPath); makeErr != nil {
+		return nil, makeErr
+	}
+	logger.InitLog.Infof("Generate NRF identity certificate: %s", certPath)
+	cert, err = oauth.GenerateCertificate(
+		string(models.Nrf_NFMgmt_NFType_NRF), instanceID,
+		certPath, &privateKey.PublicKey, rootCert, rootPrivateKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "generate NRF identity certificate")
+	}
+	return cert, nil
+}
+
+func validateNRFCertificate(
+	cert *x509.Certificate,
+	privateKey *rsa.PrivateKey,
+	rootCert *x509.Certificate,
+	now time.Time,
+) error {
+	if cert == nil || privateKey == nil || rootCert == nil {
+		return errors.New("NRF certificate validation requires certificate, private key, and root certificate")
+	}
+	if !privateKey.PublicKey.Equal(cert.PublicKey) {
+		return errors.New("NRF certificate public key does not match private key")
+	}
+	if err := rootCert.CheckSignature(cert.SignatureAlgorithm, cert.RawTBSCertificate, cert.Signature); err != nil {
+		return errors.Wrap(err, "NRF certificate is not signed by configured root certificate")
+	}
+	if now.Before(cert.NotBefore) || now.After(cert.NotAfter) {
+		return errors.New("NRF certificate is not currently valid")
+	}
+	return nil
 }
 
 func InitNFService(srvNameList []string, version string) []models.Nrf_NFMgmt_NFService {
