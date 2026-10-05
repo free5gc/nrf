@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/oauth2"
 
 	"github.com/free5gc/nrf/internal/logger"
@@ -21,6 +21,7 @@ import (
 	"github.com/free5gc/openapi"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/openapi/oauth"
+	"github.com/free5gc/util/mongoapi"
 )
 
 type NRFContext struct {
@@ -31,13 +32,23 @@ type NRFContext struct {
 	NrfPrivKey       *rsa.PrivateKey
 	NrfPubKey        *rsa.PublicKey
 	NrfCert          *x509.Certificate
-	NfRegistNum      int
-	nfRegistNumLock  sync.RWMutex
 }
 
 const (
 	NfProfileCollName string = "NfProfile"
 )
+
+// Heart-beat bookkeeping fields the NRF stores in each NF profile document.
+const (
+	LastHeartBeatField = "lastHeartBeat"
+	SuspendedAtField   = "suspendedAt"
+	SuspendedFromField = "suspendedFrom"
+)
+
+// NfProfileCollection returns the NF profile collection, for the operations mongoapi does not wrap.
+func NfProfileCollection() *mongo.Collection {
+	return mongoapi.Client.Database(factory.NrfConfig.Configuration.MongoDBName).Collection(NfProfileCollName)
+}
 
 type NFContext interface {
 	AuthorizationCheck(token string, serviceName models.Nrf_NFMgmt_ServiceName) error
@@ -56,7 +67,6 @@ func InitNrfContext() error {
 	nrfContext.NrfNfProfile.NfInstanceId = config.GetNfInstanceId()
 	nrfContext.NrfNfProfile.NfType = models.Nrf_NFMgmt_NFType_NRF
 	nrfContext.NrfNfProfile.NfStatus = models.Nrf_NFMgmt_NFStatus_REGISTERED
-	nrfContext.NfRegistNum = 0
 
 	serviceNameList := configuration.ServiceNameList
 
@@ -259,16 +269,4 @@ func (ctx *NRFContext) GetTokenCtx(
 		Expiry:      time.Unix(int64(now+expiration), 0),
 	})
 	return context.WithValue(context.Background(), openapi.ContextOAuth2, tok), nil, nil
-}
-
-func (ctx *NRFContext) AddNfRegister() {
-	ctx.nfRegistNumLock.Lock()
-	defer ctx.nfRegistNumLock.Unlock()
-	ctx.NfRegistNum += 1
-}
-
-func (ctx *NRFContext) DelNfRegister() {
-	ctx.nfRegistNumLock.Lock()
-	defer ctx.nfRegistNumLock.Unlock()
-	ctx.NfRegistNum -= 1
 }

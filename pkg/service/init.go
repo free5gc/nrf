@@ -175,22 +175,19 @@ func (a *NrfApp) Start() {
 		return
 	}
 
-	// Discovery queries filter on amfInfo.guamiList via $elemMatch; without an index every
-	// call does a full collection scan. Indexing it also rules out full-collection-scan
-	// behavior as a variable in the intermittent NfProfile discovery misses tracked in
-	// doc/known-issue-nasreroute-multiamf-flakiness.md.
-	nfProfileColl := mongoapi.Client.Database(factory.NrfConfig.Configuration.MongoDBName).
-		Collection(nrf_context.NfProfileCollName)
-	if _, err := nfProfileColl.Indexes().CreateOne(context.Background(), mongo.IndexModel{
-		Keys: bson.M{"amfInfo.guamiList": 1},
-	}); err != nil {
-		logger.InitLog.Errorf("Create index on amfInfo.guamiList failed: %+v", err)
-	}
+	a.createNfProfileIndexes()
 
 	logger.InitLog.Infoln("Server starting")
 
 	a.wg.Add(1)
 	go a.listenShutdownEvent()
+
+	if a.cfg.IsHeartbeatEnforced() {
+		a.wg.Add(1)
+		go a.sweepStaleNfProfiles()
+	} else {
+		logger.InitLog.Infoln("Heart-beat enforcement disabled: silent NFs are never suspended")
+	}
 
 	if err := a.sbiServer.Run(&a.wg); err != nil {
 		logger.MainLog.Fatalf("Run SBI server failed: %+v", err)
@@ -221,43 +218,98 @@ func (a *NrfApp) Terminate() {
 	a.cancel()
 }
 
+// createNfProfileIndexes indexes the NfProfile lookups. Creation is idempotent, and a missing
+// index only costs performance, so a failure is logged and not fatal.
+func (a *NrfApp) createNfProfileIndexes() {
+	coll := nrf_context.NfProfileCollection()
+	indexes := []mongo.IndexModel{
+		// Discovery matches amfInfo.guamiList with $elemMatch; unindexed, every query scans the collection.
+		{Keys: bson.D{{Key: "amfInfo.guamiList", Value: 1}}},
+		// NF management looks instances up by nfInstanceId, several times per heart-beat.
+		{Keys: bson.D{{Key: "nfInstanceId", Value: 1}}},
+		// The heart-beat sweep claims; unindexed, each claim scans the collection.
+		{Keys: bson.D{{Key: "nfStatus", Value: 1}, {Key: nrf_context.LastHeartBeatField, Value: 1}}},
+		{Keys: bson.D{
+			{Key: "nfStatus", Value: 1},
+			{Key: nrf_context.SuspendedAtField, Value: 1},
+			{Key: nrf_context.LastHeartBeatField, Value: 1},
+		}},
+	}
+	// One at a time, so a conflict on one index does not block the others.
+	for _, index := range indexes {
+		if _, err := coll.Indexes().CreateOne(a.ctx, index); err != nil {
+			logger.InitLog.Warnf("Create NfProfile index %v failed: %+v", index.Keys, err)
+		}
+	}
+}
+
+// sweepStaleNfProfiles suspends silent instances and, after the startup grace, drops long-SUSPENDED
+// ones, every sweepInterval. The database claims each instance for one replica, however many run.
+func (a *NrfApp) sweepStaleNfProfiles() {
+	defer a.wg.Done()
+
+	ticker := time.NewTicker(sweepInterval(a.cfg.GetHeartbeatTimer()))
+	defer ticker.Stop()
+
+	start := time.Now()
+	for {
+		select {
+		case <-a.ctx.Done():
+			return
+		case <-ticker.C:
+			a.sweepOnce(time.Since(start))
+		}
+	}
+}
+
+// maxSweepInterval bounds how late a missed deadline is noticed: ticking once per heart-beat
+// timer would lag by up to a whole interval, an hour at timer 3600.
+const maxSweepInterval = 5 * time.Second
+
+func sweepInterval(timer int) time.Duration {
+	return min(time.Duration(timer)*time.Second, maxSweepInterval)
+}
+
+// sweepOnce recovers per tick: a panic must not silently kill the sweeper.
+func (a *NrfApp) sweepOnce(uptime time.Duration) {
+	defer func() {
+		if p := recover(); p != nil {
+			logger.MainLog.Errorf("panic in heart-beat sweep: %v\n%s", p, string(debug.Stack()))
+		}
+	}()
+	deadline := time.Duration(a.cfg.GetHeartbeatSuspendDeadline()) * time.Second
+	if !suspendGraceElapsed(uptime, deadline) {
+		return
+	}
+	a.processor.SuspendStaleNfProfiles(a.ctx)
+	// Suspending first is safe: a fresh suspendedAt is never past the drop cutoff.
+	if dropGraceElapsed(uptime, deadline, time.Duration(a.cfg.GetHeartbeatTimer())*time.Second) {
+		a.processor.DropStaleSuspendedNfProfiles(a.ctx)
+	}
+}
+
+// suspendGraceElapsed holds the suspend sweep for one suspension deadline after startup: stamps
+// predate the NRF outage, so live instances need that long to heart-beat in again.
+func suspendGraceElapsed(uptime, deadline time.Duration) bool {
+	return uptime >= deadline
+}
+
+// dropGraceElapsed holds the drop sweep one deadline plus one interval after startup: while the NRF
+// was down, live instances could not lift their suspension.
+func dropGraceElapsed(uptime, deadline, interval time.Duration) bool {
+	return uptime > deadline+interval
+}
+
+// terminateProcedure stops serving but leaves the registry: a terminating replica must not deregister
+// the whole network. The heart-beat sweep handles dead instances, here or on another replica.
 func (a *NrfApp) terminateProcedure() {
 	logger.MainLog.Infof("Terminating NRF...")
-
-	waitTime := 5
-	logger.MainLog.Infof("Waiting for %vs for other NFs to deregister", waitTime)
-	a.waitNfDeregister(waitTime)
-
-	logger.MainLog.Infof("Remove NF Profile...")
-	err := mongoapi.Drop(nrf_context.NfProfileCollName)
-	if err != nil {
-		logger.MainLog.Errorf("Drop NfProfile collection failed: %+v", err)
-	}
 
 	a.sbiServer.Stop()
 
 	if a.metricsServer != nil {
 		a.metricsServer.Stop()
 		logger.MainLog.Infof("NRF Metrics Server terminated")
-	}
-}
-
-func (a *NrfApp) waitNfDeregister(waitTime int) {
-	ctx, cancal := context.WithTimeout(context.Background(), time.Duration(waitTime)*time.Second)
-	defer cancal()
-
-	ticker := time.NewTicker(100 * time.Millisecond)
-	for {
-		select {
-		case <-ctx.Done():
-			logger.MainLog.Warningln("Wait NF Deregister timeout")
-			return
-		case <-ticker.C:
-			if a.Context().NfRegistNum == 0 {
-				logger.MainLog.Infoln("All Register NF had been deregister")
-				return
-			}
-		}
 	}
 }
 
