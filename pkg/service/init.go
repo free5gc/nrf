@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/free5gc/openapi"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
@@ -44,6 +45,9 @@ type NrfApp struct {
 }
 
 func NewApp(ctx context.Context, cfg *factory.Config, tlsKeyLogPath string) (*NrfApp, error) {
+	if err := openapi.ConfigureHTTP2Clients(cfg.GetReadIdleTimeout(), cfg.GetPingTimeout()); err != nil {
+		return nil, err
+	}
 	nrf := &NrfApp{
 		cfg: cfg,
 		wg:  sync.WaitGroup{},
