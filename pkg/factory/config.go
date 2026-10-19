@@ -253,8 +253,9 @@ func (m *Metrics) validate() (bool, error) {
 }
 
 type Cert struct {
-	Pem string `yaml:"pem,omitempty" valid:"type(string),minstringlength(1),required"`
-	Key string `yaml:"key,omitempty" valid:"type(string),minstringlength(1),required"`
+	Verify bool   `yaml:"verify,omitempty" valid:"type(bool)"`
+	Pem    string `yaml:"pem,omitempty" valid:"type(string),minstringlength(1),required"`
+	Key    string `yaml:"key,omitempty" valid:"type(string),minstringlength(1),required"`
 }
 
 func (c *Cert) validate() (bool, error) {
@@ -638,4 +639,16 @@ func (c *Config) GetHeartbeatDropDelay() int {
 		return hb.DropDelay
 	}
 	return NrfDefaultHeartbeatDropDelay
+}
+
+// GetTLSVerify controls outgoing SBI server certificate verification.
+// Configuration is read before traffic starts; omitted verify retains false.
+func (c *Config) GetTLSVerify() bool {
+	if c == nil {
+		return false
+	}
+	c.RLock()
+	defer c.RUnlock()
+	return c.Configuration != nil && c.Configuration.Sbi != nil &&
+		c.Configuration.Sbi.Cert != nil && c.Configuration.Sbi.Cert.Verify
 }
