@@ -90,8 +90,23 @@ func (p *Processor) SuspendStaleNfProfiles(ctx context.Context) {
 	}
 
 	forEachConcurrently(suspended, func(profile *models.Nrf_NFMgmt_NFProfile) {
+		// A heart-beat that lifted the suspension meanwhile notified on its own; a SUSPENDED sent
+		// now would land after its REGISTERED.
+		if !stillSuspended(ctx, coll, profile.NfInstanceId) {
+			return
+		}
 		p.notifySubscribers(models.Nrf_NFMgmt_NotificationEventType_PROFILE_CHANGED, profile)
 	})
+}
+
+// stillSuspended reports whether the instance is still SUSPENDED. A failed read counts as yes: the
+// claim happened, so subscribers must hear of it.
+func stillSuspended(ctx context.Context, coll *mongo.Collection, nfInstanceID string) bool {
+	err := coll.FindOne(ctx, bson.M{
+		"nfInstanceId": nfInstanceID,
+		"nfStatus":     string(models.Nrf_NFMgmt_NFStatus_SUSPENDED),
+	}).Err()
+	return !errors.Is(err, mongo.ErrNoDocuments)
 }
 
 // claimStaleNfProfiles suspends up to limit instances in status from that are silent since cutoff.
@@ -310,22 +325,23 @@ func suspensionActionAfter(profile map[string]interface{}, statusWritten bool) s
 }
 
 // settleSuspension applies action to the stored suspension and updates profile to match. Each
-// write filters on the status it expects, so racing the sweep is safe in both orders.
-func settleSuspension(nfInstanceID string, action suspensionAction, profile map[string]interface{}) error {
+// write filters on the status it expects, so racing the sweep is safe in both orders. It reports
+// whether the update took the instance out of SUSPENDED.
+func settleSuspension(nfInstanceID string, action suspensionAction, profile map[string]interface{}) (bool, error) {
 	coll := nrf_context.NfProfileCollection()
 	suspended := string(models.Nrf_NFMgmt_NFStatus_SUSPENDED)
 
 	switch action {
 	case suspensionClear:
-		_, err := coll.UpdateOne(context.Background(),
+		result, err := coll.UpdateOne(context.Background(),
 			bson.M{"nfInstanceId": nfInstanceID, "nfStatus": bson.M{"$ne": suspended}},
 			bson.M{"$unset": bson.M{nrf_context.SuspendedAtField: "", nrf_context.SuspendedFromField: ""}})
-		return err
+		return err == nil && result.ModifiedCount > 0, err
 	case suspensionAdopt:
 		_, err := coll.UpdateOne(context.Background(),
 			bson.M{"nfInstanceId": nfInstanceID, "nfStatus": suspended},
 			bson.M{"$unset": bson.M{nrf_context.SuspendedFromField: ""}})
-		return err
+		return false, err
 	case suspensionLift:
 		from, _ := profile[nrf_context.SuspendedFromField].(string)
 		result, err := coll.UpdateOne(context.Background(),
@@ -336,10 +352,11 @@ func settleSuspension(nfInstanceID string, action suspensionAction, profile map[
 			})
 		if err == nil && result.MatchedCount > 0 {
 			profile["nfStatus"] = from
+			return true, nil
 		}
-		return err
+		return false, err
 	default:
-		return nil
+		return false, nil
 	}
 }
 
@@ -761,7 +778,8 @@ func (p *Processor) UpdateNFInstanceProcedure(
 	// Any NFUpdate counts as a heart-beat: without the lift, a suspended instance that keeps sending
 	// load-only updates would stay SUSPENDED forever.
 	action := suspensionActionAfter(nf, nfStatusPatched(patchJSON))
-	if err = settleSuspension(nfInstanceID, action, nf); err != nil {
+	suspensionEnded, err := settleSuspension(nfInstanceID, action, nf)
+	if err != nil {
 		logger.NfmLog.Errorf("UpdateNFInstanceProcedure settle suspension err: %+v", err)
 	}
 
@@ -787,8 +805,9 @@ func (p *Processor) UpdateNFInstanceProcedure(
 		return nil, nfProfileNotFound(nfInstanceID)
 	}
 
-	// Most updates are plain heart-beats: notifying on each would flood every subscriber.
-	if profileChanged(original, nf) {
+	// Most updates are plain heart-beats: notifying on each would flood every subscriber. original can
+	// predate a sweep suspension that subscribers already heard (TS 29.510 clause 5.2.2.6.2).
+	if suspensionEnded || profileChanged(original, nf) {
 		p.notifySubscribers(models.Nrf_NFMgmt_NotificationEventType_PROFILE_CHANGED, &nfProfiles[0])
 	}
 	return nf, nil
@@ -1039,7 +1058,8 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile *models.Nrf_NF
 		if nf.NfStatus == models.Nrf_NFMgmt_NFStatus_SUSPENDED {
 			action = suspensionAdopt
 		}
-		if err = settleSuspension(nfInstanceId, action, nil); err != nil {
+		// Registration notifies in every case below.
+		if _, err = settleSuspension(nfInstanceId, action, nil); err != nil {
 			logger.NfmLog.Errorf("NFRegisterProcedure settle suspension err: %+v", err)
 		}
 	}
