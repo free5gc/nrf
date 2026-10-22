@@ -232,8 +232,12 @@ func (a *NrfApp) createNfProfileIndexes() {
 		{Keys: bson.D{{Key: "amfInfo.guamiList", Value: 1}}},
 		// NF management looks instances up by nfInstanceId, several times per heart-beat.
 		{Keys: bson.D{{Key: "nfInstanceId", Value: 1}}},
-		// The heart-beat sweep claims; unindexed, each claim scans the collection.
-		{Keys: bson.D{{Key: "nfStatus", Value: 1}, {Key: nrf_context.LastHeartBeatField, Value: 1}}},
+		// The heart-beat sweep lists the stored timers, then claims per timer; unindexed, each scans the collection.
+		{Keys: bson.D{
+			{Key: "nfStatus", Value: 1},
+			{Key: "heartBeatTimer", Value: 1},
+			{Key: nrf_context.LastHeartBeatField, Value: 1},
+		}},
 		{Keys: bson.D{
 			{Key: "nfStatus", Value: 1},
 			{Key: nrf_context.SuspendedAtField, Value: 1},
@@ -282,21 +286,12 @@ func (a *NrfApp) sweepOnce(uptime time.Duration) {
 			logger.MainLog.Errorf("panic in heart-beat sweep: %v\n%s", p, string(debug.Stack()))
 		}
 	}()
+	a.processor.SuspendStaleNfProfiles(a.ctx, uptime)
 	deadline := time.Duration(a.cfg.GetHeartbeatSuspendDeadline()) * time.Second
-	if !suspendGraceElapsed(uptime, deadline) {
-		return
-	}
-	a.processor.SuspendStaleNfProfiles(a.ctx)
 	// Suspending first is safe: a fresh suspendedAt is never past the drop cutoff.
 	if dropGraceElapsed(uptime, deadline, time.Duration(a.cfg.GetHeartbeatTimer())*time.Second) {
 		a.processor.DropStaleSuspendedNfProfiles(a.ctx)
 	}
-}
-
-// suspendGraceElapsed holds the suspend sweep for one suspension deadline after startup: stamps
-// predate the NRF outage, so live instances need that long to heart-beat in again.
-func suspendGraceElapsed(uptime, deadline time.Duration) bool {
-	return uptime >= deadline
 }
 
 // dropGraceElapsed holds the drop sweep one deadline plus one interval after startup: while the NRF

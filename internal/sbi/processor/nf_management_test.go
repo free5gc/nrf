@@ -403,3 +403,18 @@ func TestSuspensionActionAfter(t *testing.T) {
 		})
 	}
 }
+
+// TestHeartBeatTimers pins how the stored timers become sweep groups: the configured one comes first, as
+// it also covers profiles stored without a usable timer, and numeric types compare by value.
+func TestHeartBeatTimers(t *testing.T) {
+	assert.Equal(t, []float64{10}, heartBeatTimers(nil, 10))
+	assert.Equal(t, []float64{10, 30},
+		heartBeatTimers([]interface{}{int32(10), float64(10), int64(30), int32(0), float64(-1), "x", nil}, 10))
+}
+
+// TestSuspendGraceElapsed pins the boundary: with a 20 second suspension
+// deadline the suspend sweep stays quiet until 20 seconds of uptime.
+func TestSuspendGraceElapsed(t *testing.T) {
+	assert.False(t, suspendGraceElapsed(19*time.Second, 20*time.Second))
+	assert.True(t, suspendGraceElapsed(20*time.Second, 20*time.Second))
+}

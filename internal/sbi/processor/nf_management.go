@@ -62,12 +62,13 @@ var suspendableStatuses = []string{
 	string(models.Nrf_NFMgmt_NFStatus_UNDISCOVERABLE),
 }
 
-// SuspendStaleNfProfiles suspends instances silent past the suspension deadline and notifies their
-// subscribers (TS 29.510 clause 5.2.2.3.2). The deadline uses the NRF's timer, never the stored one.
-func (p *Processor) SuspendStaleNfProfiles(ctx context.Context) {
-	deadline := time.Duration(factory.NrfConfig.GetHeartbeatSuspendDeadline()) * time.Second
+// SuspendStaleNfProfiles suspends instances silent past their suspension deadline and notifies their
+// subscribers. Each instance is held to its stored heartBeatTimer, the last one it was given: a new
+// timer applies once a heart-beat response has carried it (TS 29.510 clause 5.2.2.3.2).
+func (p *Processor) SuspendStaleNfProfiles(ctx context.Context, uptime time.Duration) {
+	configured := factory.NrfConfig.GetHeartbeatTimer()
+	factor := factory.NrfConfig.GetHeartbeatSuspendFactor()
 	now := time.Now().UTC()
-	cutoff := now.Add(-deadline).Format(time.RFC3339)
 
 	coll := nrf_context.NfProfileCollection()
 
@@ -81,12 +82,33 @@ func (p *Processor) SuspendStaleNfProfiles(ctx context.Context) {
 		logger.NfmLog.Errorf("Backfill lastHeartBeat err: %+v", err)
 	}
 
+	stored, err := coll.Distinct(ctx, "heartBeatTimer", bson.M{"nfStatus": bson.M{"$in": suspendableStatuses}})
+	if err != nil {
+		logger.NfmLog.Errorf("Read stored heartBeatTimer err: %+v", err)
+		return
+	}
+
 	// Claim the whole batch before notifying: discovery drops an instance at its claim, and must
 	// not wait on another instance's subscribers.
 	var suspended []models.Nrf_NFMgmt_NFProfile
-	for _, from := range suspendableStatuses {
-		suspended = append(suspended,
-			claimStaleNfProfiles(ctx, coll, from, cutoff, now, sweepBatchSize-len(suspended))...)
+	for _, timer := range heartBeatTimers(stored, configured) {
+		deadline := time.Duration(timer * float64(factor) * float64(time.Second))
+		if !suspendGraceElapsed(uptime, deadline) {
+			continue
+		}
+		timerMatch := bson.A{bson.M{"heartBeatTimer": timer}}
+		if timer == float64(configured) {
+			// A profile stored by an older NRF may hold no usable timer: the configured one applies.
+			timerMatch = append(timerMatch, bson.M{"heartBeatTimer": bson.M{"$not": bson.M{"$gt": 0}}})
+		}
+		stale := bson.M{
+			nrf_context.LastHeartBeatField: bson.M{"$lt": now.Add(-deadline).Format(time.RFC3339)},
+			"$or":                          timerMatch,
+		}
+		for _, from := range suspendableStatuses {
+			suspended = append(suspended,
+				claimStaleNfProfiles(ctx, coll, from, stale, now, sweepBatchSize-len(suspended))...)
+		}
 	}
 
 	forEachConcurrently(suspended, func(profile *models.Nrf_NFMgmt_NFProfile) {
@@ -109,19 +131,46 @@ func stillSuspended(ctx context.Context, coll *mongo.Collection, nfInstanceID st
 	return !errors.Is(err, mongo.ErrNoDocuments)
 }
 
-// claimStaleNfProfiles suspends up to limit instances in status from that are silent since cutoff.
+// heartBeatTimers returns the configured timer, which also stands for profiles stored without a usable
+// one, then the other positive timers among stored, Distinct values of any numeric type.
+func heartBeatTimers(stored []interface{}, configured int) []float64 {
+	timers := []float64{float64(configured)}
+	for _, value := range stored {
+		var timer float64
+		switch v := value.(type) {
+		case int32:
+			timer = float64(v)
+		case int64:
+			timer = float64(v)
+		case float64:
+			timer = v
+		}
+		if timer > 0 && !slices.Contains(timers, timer) {
+			timers = append(timers, timer)
+		}
+	}
+	return timers
+}
+
+// suspendGraceElapsed holds the suspend sweep for one suspension deadline after startup: stamps
+// predate the NRF outage, so live instances need that long to heart-beat in again.
+func suspendGraceElapsed(uptime, deadline time.Duration) bool {
+	return uptime >= deadline
+}
+
+// claimStaleNfProfiles suspends up to limit instances in status from that match stale.
 // Each findOneAndUpdate claims one instance, so replicas sharing the database notify disjoint sets.
-func claimStaleNfProfiles(ctx context.Context, coll *mongo.Collection, from, cutoff string, now time.Time,
+func claimStaleNfProfiles(ctx context.Context, coll *mongo.Collection, from string, stale bson.M, now time.Time,
 	limit int,
 ) []models.Nrf_NFMgmt_NFProfile {
+	filter := maps.Clone(stale)
+	filter["nfStatus"] = from
+
 	var claimed []models.Nrf_NFMgmt_NFProfile
 	for i := 0; i < limit; i++ {
 		var raw map[string]interface{}
 		err := coll.FindOneAndUpdate(ctx,
-			bson.M{
-				"nfStatus":                     from,
-				nrf_context.LastHeartBeatField: bson.M{"$lt": cutoff},
-			},
+			filter,
 			// suspendedAt starts the drop clock, fresh at every transition as the filter skips SUSPENDED.
 			// suspendedFrom marks the suspension as the NRF's, for a heart-beat to lift.
 			bson.M{"$set": bson.M{
@@ -280,7 +329,7 @@ func (p *Processor) cleanUpDeregistered(profile *models.Nrf_NFMgmt_NFProfile) er
 }
 
 // recordHeartBeat stamps lastHeartBeat in fixed-width UTC RFC3339, so $lt order is time order. It also
-// re-stamps heartBeatTimer, which NFs adopt from the 200 response, so a config change cannot make them flap.
+// re-stamps heartBeatTimer: the 200 response hands it to the NF, and the sweep holds the NF to it from then on.
 func recordHeartBeat(nfInstanceID string) error {
 	_, err := nrf_context.NfProfileCollection().UpdateOne(context.Background(),
 		bson.M{"nfInstanceId": nfInstanceID},

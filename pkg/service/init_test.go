@@ -7,13 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestSuspendGraceElapsed pins the boundary: with a 20 second suspension
-// deadline the suspend sweep stays quiet until 20 seconds of uptime.
-func TestSuspendGraceElapsed(t *testing.T) {
-	assert.False(t, suspendGraceElapsed(19*time.Second, 20*time.Second))
-	assert.True(t, suspendGraceElapsed(20*time.Second, 20*time.Second))
-}
-
 // TestDropGraceElapsed pins the boundary: with a 20 second suspension deadline and a 10 second
 // interval the drop sweep stays quiet through the first 30 seconds.
 func TestDropGraceElapsed(t *testing.T) {
