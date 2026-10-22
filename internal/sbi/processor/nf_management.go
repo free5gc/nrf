@@ -298,21 +298,42 @@ func (p *Processor) DropStaleSuspendedNfProfiles(ctx context.Context) {
 		}
 		logger.NfmLog.Infof("NF profile dropped, SUSPENDED since %v: %v [%v]",
 			raw[nrf_context.SuspendedAtField], nfProfiles[0].NfType, nfProfiles[0].NfInstanceId)
+		// Right after the delete, not after the batch's notifications: a re-registration landing later
+		// keeps its own entry and certificate. Logged rather than propagated: no client waits on the sweep.
+		if err = removeDeregisteredState(&nfProfiles[0]); err != nil {
+			logger.NfmLog.Errorf("Drop urilist cleanup err: %+v", err)
+		}
 		dropped = append(dropped, nfProfiles[0])
 	}
 
-	// Logged rather than propagated: no client waits on the sweep.
 	forEachConcurrently(dropped, func(profile *models.Nrf_NFMgmt_NFProfile) {
-		if err := p.cleanUpDeregistered(profile); err != nil {
-			logger.NfmLog.Errorf("Drop urilist cleanup err: %+v", err)
+		// An instance registered again meanwhile notified REGISTERED; a DEREGISTERED sent now would land
+		// after it.
+		if registeredAgain(ctx, coll, profile.NfInstanceId) {
+			return
 		}
+		p.notifySubscribers(models.Nrf_NFMgmt_NotificationEventType_DEREGISTERED, profile)
 	})
 }
 
-// cleanUpDeregistered notifies DEREGISTERED and removes what the NRF keeps beside a deleted profile.
-// Only the urilist error is returned: notification and certificate failures are logged.
+// registeredAgain reports whether a profile with the instance's ID exists again. A failed read counts as
+// no: the drop happened, so subscribers must hear of it.
+func registeredAgain(ctx context.Context, coll *mongo.Collection, nfInstanceID string) bool {
+	return coll.FindOne(ctx, bson.M{"nfInstanceId": nfInstanceID}).Err() == nil
+}
+
+// cleanUpDeregistered removes what the NRF keeps beside a deleted profile, then notifies DEREGISTERED.
+// Removing first keeps the window in which it can hit a re-registration short. Only the urilist error is
+// returned: certificate and notification failures are logged.
 func (p *Processor) cleanUpDeregistered(profile *models.Nrf_NFMgmt_NFProfile) error {
+	err := removeDeregisteredState(profile)
 	p.notifySubscribers(models.Nrf_NFMgmt_NotificationEventType_DEREGISTERED, profile)
+	return err
+}
+
+// removeDeregisteredState removes the urilist entry and, with OAuth, the certificate of a deleted profile.
+// Only the urilist error is returned: a certificate failure is logged.
+func removeDeregisteredState(profile *models.Nrf_NFMgmt_NFProfile) error {
 	putData := bson.M{
 		"_link.item": bson.M{"href": nrf_context.GetNfInstanceURI(profile.NfInstanceId)},
 		"multi":      true,
