@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"maps"
 	"net/http"
 	"os"
@@ -1153,6 +1154,14 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile *models.Nrf_NF
 		logger.NfmLog.Infoln("NFRegister NfProfile Update:", nfInstanceId)
 		p.notifySubscribers(models.Nrf_NFMgmt_NotificationEventType_PROFILE_CHANGED, &nf)
 
+		// Profiles outlive NRF restarts, so one can outlast its certificate, and without it every access
+		// token request of the NF fails. Its re-registration is the moment to sign a new one.
+		if factory.NrfConfig.GetOAuth() && nfCertMissing(string(nf.NfType), nfInstanceId) {
+			if err = nrf_context.SignNFCert(string(nf.NfType), nfInstanceId); err != nil {
+				logger.NfmLog.Warnln(err)
+			}
+		}
+
 		c.Writer.Header().Add("Location", locationHeaderValue)
 		c.JSON(http.StatusOK, putData)
 		return
@@ -1171,4 +1180,9 @@ func (p *Processor) NFRegisterProcedure(c *gin.Context, nfProfile *models.Nrf_NF
 		c.JSON(http.StatusCreated, putData)
 		return
 	}
+}
+
+func nfCertMissing(nfType, nfInstanceID string) bool {
+	_, err := os.Stat(oauth.GetNFCertPath(factory.NrfConfig.GetCertBasePath(), nfType, nfInstanceID))
+	return errors.Is(err, fs.ErrNotExist)
 }
