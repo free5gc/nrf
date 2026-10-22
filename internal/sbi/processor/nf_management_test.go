@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"net/http"
 	"strconv"
 	"sync/atomic"
 	"testing"
@@ -100,6 +101,35 @@ func TestValidateNfProfilePatch(t *testing.T) {
 			}
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+// TestUpdateNFInstanceRejection pins the status codes of 3GPP TS 29.500 Table 5.2.7.2-1: writing an
+// NRF-owned field is 403 MODIFICATION_NOT_ALLOWED, a malformed patch stays 400.
+func TestUpdateNFInstanceRejection(t *testing.T) {
+	tests := []struct {
+		name      string
+		patch     string
+		forbidden bool
+	}{
+		{"heartBeatTimer", `[{"op":"replace","path":"/heartBeatTimer","value":0}]`, true},
+		{"sweep bookkeeping", `[{"op":"remove","path":"/suspendedAt"}]`, true},
+		{"nfInstanceId", `[{"op":"replace","path":"/nfInstanceId","value":"other"}]`, true},
+		{"malformed payload", `not json`, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// The patch is checked before any database access.
+			_, problemDetails := (&Processor{}).UpdateNFInstanceProcedure("nf-1", []byte(tt.patch))
+			require.NotNil(t, problemDetails)
+			if tt.forbidden {
+				assert.EqualValues(t, http.StatusForbidden, problemDetails.Status)
+				assert.Equal(t, "MODIFICATION_NOT_ALLOWED", problemDetails.Cause)
+				return
+			}
+			assert.EqualValues(t, http.StatusBadRequest, problemDetails.Status)
 		})
 	}
 }
@@ -216,6 +246,7 @@ func TestCheckPatchInvariants(t *testing.T) {
 			}
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
+			assert.EqualValues(t, http.StatusForbidden, patchRejection(err).Status)
 		})
 	}
 }

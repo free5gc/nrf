@@ -660,11 +660,7 @@ func (p *Processor) UpdateNFInstanceProcedure(
 ) (map[string]interface{}, *models.ProblemDetails) {
 	if err := validateNfProfilePatch(patchJSON); err != nil {
 		logger.NfmLog.Warnf("Reject invalid NF profile patch: %v", err)
-		return nil, &models.ProblemDetails{
-			Title:  "Malformed request syntax",
-			Status: http.StatusBadRequest,
-			Detail: err.Error(),
-		}
+		return nil, patchRejection(err)
 	}
 
 	collName := nrf_context.NfProfileCollName
@@ -733,11 +729,7 @@ func (p *Processor) UpdateNFInstanceProcedure(
 	}
 	if err := checkPatchInvariants(currentJSON, patchedJSON); err != nil {
 		logger.NfmLog.Warnf("Reject invalid NF profile patch result: %v", err)
-		return nil, &models.ProblemDetails{
-			Title:  "Malformed request syntax",
-			Status: http.StatusBadRequest,
-			Detail: err.Error(),
-		}
+		return nil, patchRejection(err)
 	}
 
 	// The NFUpdate is the heart-beat (TS 29.510 clause 5.2.2.3.2). Stamp it before the patch stores
@@ -849,11 +841,33 @@ func nrfOwnedField(member string) (string, bool) {
 	return "", false
 }
 
-func nrfOwnedFieldError(name string) error {
+// nrfOwnedFieldError names the NRF-owned field a patch tried to write.
+type nrfOwnedFieldError string
+
+func (name nrfOwnedFieldError) Error() string {
 	if name == "nfInstanceId" {
-		return errors.New("nfInstanceId is immutable and cannot be modified")
+		return "nfInstanceId is immutable and cannot be modified"
 	}
-	return fmt.Errorf("%s is set by the NRF and cannot be modified", name)
+	return fmt.Sprintf("%s is set by the NRF and cannot be modified", string(name))
+}
+
+// patchRejection answers a rejected NF profile patch: 403 MODIFICATION_NOT_ALLOWED for an NRF-owned
+// field (3GPP TS 29.500 Table 5.2.7.2-1), 400 for anything else.
+func patchRejection(err error) *models.ProblemDetails {
+	var owned nrfOwnedFieldError
+	if errors.As(err, &owned) {
+		return &models.ProblemDetails{
+			Title:  "Modification not allowed",
+			Status: http.StatusForbidden,
+			Detail: err.Error(),
+			Cause:  "MODIFICATION_NOT_ALLOWED",
+		}
+	}
+	return &models.ProblemDetails{
+		Title:  "Malformed request syntax",
+		Status: http.StatusBadRequest,
+		Detail: err.Error(),
+	}
 }
 
 func validateNfProfilePatch(patchJSON []byte) error {
