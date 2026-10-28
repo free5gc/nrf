@@ -122,3 +122,26 @@ func TestValidateNfProfileRejectsInvalidEndpointPort(t *testing.T) {
 		t.Fatal("expected invalid endpoint port to be rejected")
 	}
 }
+
+// The NRF assigns heartBeatTimer at registration, so no proposal is a reason to reject the PUT.
+func TestValidateRegistrationIgnoresHeartbeatProposal(t *testing.T) {
+	for _, proposal := range []int32{0, -1, maxHeartBeatTimer + 1} {
+		profile := validTestNfProfile()
+		profile.HeartBeatTimer = proposal
+		if err := validateRegistration(&profile); err != nil {
+			t.Fatalf("expected heartBeatTimer proposal %d to be ignored, got error: %v", proposal, err)
+		}
+		if profile.HeartBeatTimer != proposal {
+			t.Fatalf("validateRegistration must not modify the request profile")
+		}
+	}
+}
+
+func TestValidateRegistrationStillChecksTheProfile(t *testing.T) {
+	profile := validTestNfProfile()
+	profile.NfType = models.Nrf_NFMgmt_NFType("INVALID_TYPE")
+
+	if err := validateRegistration(&profile); err == nil {
+		t.Fatal("expected invalid nfType to be rejected")
+	}
+}

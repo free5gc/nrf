@@ -59,10 +59,8 @@ func SetsubscriptionId() (string, error) {
 }
 
 func nnrfNFManagementCondition(nf *models.Nrf_NFMgmt_NFProfile, nfprofile *models.Nrf_NFMgmt_NFProfile) {
-	// HeartBeatTimer
-	if nfprofile.HeartBeatTimer >= 0 {
-		nf.HeartBeatTimer = nfprofile.HeartBeatTimer
-	}
+	// The NRF assigns heartBeatTimer (TS 29.510 clauses 5.2.2.2.2 and 5.2.2.3.2) and ignores the proposal.
+	nf.HeartBeatTimer = int32(factory.NrfConfig.GetHeartbeatTimer())
 	// PlmnList
 	if nfprofile.PlmnList != nil {
 		plmnList := make([]models.PlmnId, len(nfprofile.PlmnList))

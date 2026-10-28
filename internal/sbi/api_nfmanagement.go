@@ -182,7 +182,7 @@ func (s *Server) HTTPRegisterNFInstance(c *gin.Context) {
 		return
 	}
 
-	s.Processor().HandleNFRegisterRequest(c, &nfprofile, requestBody)
+	s.Processor().HandleNFRegisterRequest(c, &nfprofile)
 }
 
 // UpdateNFInstance - Update NF Instance profile
