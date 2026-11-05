@@ -74,6 +74,7 @@ func (p *Processor) AccessTokenProcedure(request models.Nrf_AccTok_AccessTokenRe
 			Error: "invalid_request",
 		}
 	}
+
 	response := &models.Nrf_AccTok_AccessTokenRsp{
 		Access_token: accessToken,
 		Token_type:   "Bearer",
@@ -82,6 +83,7 @@ func (p *Processor) AccessTokenProcedure(request models.Nrf_AccTok_AccessTokenRe
 	}
 	return response, nil
 }
+
 func issueAccessToken(
 	request models.Nrf_AccTok_AccessTokenReq,
 	issuer string,
@@ -179,6 +181,7 @@ func (p *Processor) AccessTokenScopeCheck(req models.Nrf_AccTok_AccessTokenReq) 
 			Error: "invalid_client",
 		}
 	}
+
 	consumerNfType := string(nfProfile.NfType)
 	if reqNfType != "" && consumerNfType != reqNfType {
 		return &models.Nrf_AccTok_AccessTokenErr{

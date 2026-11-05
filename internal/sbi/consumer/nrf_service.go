@@ -43,8 +43,8 @@ func (s *nnrfService) getNFManagementClient(uri string) *NFMgmt.APIClient {
 	return client
 }
 
+// SendNFStatusNotify sends a Subscribe/Notify notification without an OAuth access token.
 func (s *nnrfService) SendNFStatusNotify(
-	ctx context.Context,
 	notification_event models.Nrf_NFMgmt_NotificationEventType,
 	nfInstanceUri string,
 	url string,
@@ -76,7 +76,7 @@ func (s *nnrfService) SendNFStatusNotify(
 	}
 
 	_, err := client.SubscriptionsCollectionApi.CreateSubscriptionOnNFStatusEvent(
-		ctx, url, request)
+		context.Background(), url, request)
 	if err != nil {
 		logger.NfmLog.Infof("Notify fail: %v", err)
 		problemDetails := &models.ProblemDetails{

@@ -34,34 +34,6 @@ import (
 	"github.com/free5gc/util/mongoapi"
 )
 
-// getNFNotifyCtx returns a context carrying an NRF self-signed Bearer token
-// for outbound NF status notifications.
-func (p *Processor) getNFNotifyCtx(target nrf_context.NotificationTarget) (context.Context, *models.ProblemDetails) {
-	var (
-		ctx context.Context
-		pd  *models.ProblemDetails
-		err error
-	)
-	if target.TargetNfInstanceID != "" {
-		ctx, pd, err = nrf_context.GetSelf().GetTokenCtxForNFInstance(
-			models.Nrf_NFMgmt_ServiceName_NNRF_NFM, target.TargetNfInstanceID)
-	} else {
-		ctx, pd, err = nrf_context.GetSelf().GetTokenCtx(models.Nrf_NFMgmt_ServiceName_NNRF_NFM, target.TargetNf)
-	}
-	if err != nil {
-		logger.NfmLog.Errorf("getNFNotifyCtx: token generation failed: %v", err)
-		if pd == nil {
-			pd = &models.ProblemDetails{
-				Status: http.StatusInternalServerError,
-				Cause:  "TOKEN_GENERATION_FAILED",
-				Detail: err.Error(),
-			}
-		}
-		return nil, pd
-	}
-	return ctx, nil
-}
-
 // sweepBatchSize bounds one pass of either sweep; a larger backlog drains
 // over the following ticks.
 const sweepBatchSize = 256
@@ -250,12 +222,7 @@ func (p *Processor) notifySubscribers(
 	}
 	nfInstanceUri := nrf_context.GetNfInstanceURI(nfProfile.NfInstanceId)
 	for _, target := range nrf_context.GetNotificationUri(nfProfile) {
-		notifCtx, pd := p.getNFNotifyCtx(target)
-		if pd != nil {
-			logger.NfmLog.Errorf("Notify %s failed: %+v", target.Uri, pd)
-			continue
-		}
-		if pd = p.Consumer().SendNFStatusNotify(notifCtx,
+		if pd := p.Consumer().SendNFStatusNotify(
 			event, nfInstanceUri, target.Uri, payload); pd != nil {
 			logger.NfmLog.Errorf("Notify %s failed: %+v", target.Uri, pd)
 		}
