@@ -31,38 +31,12 @@ func (p *Processor) HandleNFDiscoveryRequest(c *gin.Context, queryParameters url
 }
 
 func validateQueryParameters(queryParameters url.Values) bool {
-	NFs := map[string]bool{
-		"NRF":    true,
-		"UDM":    true,
-		"AMF":    true,
-		"SMF":    true,
-		"AUSF":   true,
-		"NEF":    true,
-		"PCF":    true,
-		"SMSF":   true,
-		"NSSF":   true,
-		"UDR":    true,
-		"LMF":    true,
-		"GMLC":   true,
-		"5G_EIR": true,
-		"SEPP":   true,
-		"UPF":    true,
-		"N3IWF":  true,
-		"AF":     true,
-		"UDSF":   true,
-		"BSF":    true,
-		"CHF":    true,
-		"NWDAF":  true,
-	}
-	var tgt, req string
-	if queryParameters["target-nf-type"] != nil {
-		tgt = queryParameters["target-nf-type"][0]
-	}
-	if queryParameters["requester-nf-type"] != nil {
-		req = queryParameters["requester-nf-type"][0]
-	}
+	// Validate discovery NF types using the same enum checks as NF registration.
+	tgt := queryParameters.Get("target-nf-type")
+	req := queryParameters.Get("requester-nf-type")
 
-	if !NFs[tgt] || !NFs[req] {
+	if !validNfType(models.Nrf_NFMgmt_NFType(tgt)) ||
+		!validNfType(models.Nrf_NFMgmt_NFType(req)) {
 		return false
 	}
 
