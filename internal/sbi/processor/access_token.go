@@ -2,6 +2,7 @@ package processor
 
 import (
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"net/http"
@@ -35,7 +36,7 @@ func (p *Processor) HandleAccessTokenRequest(c *gin.Context, accessTokenReq mode
 	// Param of AccessTokenRsp
 	logger.AccTokenLog.Debugln("Handle AccessTokenRequest")
 
-	response, errResponse := p.AccessTokenProcedure(accessTokenReq)
+	response, errResponse := p.AccessTokenProcedure(accessTokenReq, c.Request.TLS)
 	if errResponse != nil {
 		c.Set(sbi.IN_PB_DETAILS_CTX_STR, errResponse.Error)
 		c.JSON(http.StatusBadRequest, errResponse)
@@ -54,12 +55,14 @@ func (p *Processor) HandleAccessTokenRequest(c *gin.Context, accessTokenReq mode
 	util.GinProblemJson(c, problemDetails)
 }
 
-func (p *Processor) AccessTokenProcedure(request models.Nrf_AccTok_AccessTokenReq) (
+func (p *Processor) AccessTokenProcedure(
+	request models.Nrf_AccTok_AccessTokenReq, tlsState *tls.ConnectionState,
+) (
 	*models.Nrf_AccTok_AccessTokenRsp, *models.Nrf_AccTok_AccessTokenErr,
 ) {
 	logger.AccTokenLog.Debugln("In AccessTokenProcedure")
 
-	errResponse := p.AccessTokenScopeCheck(request)
+	errResponse := p.AccessTokenScopeCheck(request, tlsState)
 	if errResponse != nil {
 		logger.AccTokenLog.Errorf("AccessTokenScopeCheck error: %v", errResponse.Error)
 		return nil, errResponse
@@ -151,7 +154,9 @@ func isUUIDv4(value string) bool {
 	return err == nil && id.Version() == 4
 }
 
-func (p *Processor) AccessTokenScopeCheck(req models.Nrf_AccTok_AccessTokenReq) *models.Nrf_AccTok_AccessTokenErr {
+func (p *Processor) AccessTokenScopeCheck(
+	req models.Nrf_AccTok_AccessTokenReq, tlsState *tls.ConnectionState,
+) *models.Nrf_AccTok_AccessTokenErr {
 	// Check with nf profile
 	collName := nrf_context.NfProfileCollName
 	reqNfType := string(req.NfType)
@@ -160,6 +165,16 @@ func (p *Processor) AccessTokenScopeCheck(req models.Nrf_AccTok_AccessTokenReq) 
 
 	if errResponse := validateAccessTokenRequest(req); errResponse != nil {
 		return errResponse
+	}
+
+	var clientCert *x509.Certificate
+	if factory.NrfConfig.GetSbiScheme() == "https" {
+		var err error
+		clientCert, err = verifiedClientCertificate(tlsState, reqNfInstanceId)
+		if err != nil {
+			logger.AccTokenLog.Warnf("Client certificate verification failed: %v", err)
+			return &models.Nrf_AccTok_AccessTokenErr{Error: "invalid_client"}
+		}
 	}
 
 	logger.AccTokenLog.Debugf("reqNfInstanceId: %s", reqNfInstanceId)
@@ -190,59 +205,67 @@ func (p *Processor) AccessTokenScopeCheck(req models.Nrf_AccTok_AccessTokenReq) 
 	}
 	reqNfType = consumerNfType
 
-	// Verify NF's certificate with root certificate
-	roots := x509.NewCertPool()
 	nrfCtx := nrf_context.GetSelf()
-	roots.AddCert(nrfCtx.RootCert)
-
-	nfCert, err := oauth.ParseCertFromPEM(
-		oauth.GetNFCertPath(factory.NrfConfig.GetCertBasePath(), reqNfType, reqNfInstanceId))
-	if err != nil {
-		logger.AccTokenLog.Errorln("NF Certificate get error: " + err.Error())
-		return &models.Nrf_AccTok_AccessTokenErr{
-			Error: "invalid_client",
+	if clientCert != nil {
+		// TLS already verified the chain and client-auth usage. Preserve the NF type check.
+		if err := clientCert.VerifyHostname(reqNfType); err != nil {
+			return &models.Nrf_AccTok_AccessTokenErr{Error: "invalid_client"}
 		}
-	}
+	} else {
+		// Preserve the existing certificate lookup for HTTP deployments.
+		// Verify NF's certificate with root certificate
+		roots := x509.NewCertPool()
+		roots.AddCert(nrfCtx.RootCert)
 
-	opts := x509.VerifyOptions{
-		Roots:   roots,
-		DNSName: reqNfType,
-	}
-	if _, err = nfCert.Verify(opts); err != nil {
-		// DEBUG
-		// In testing environment, this would leads to follwing error:
-		// certificate verify error: x509: certificate signed by unknown authority free5GC
-		if strings.Contains(err.Error(), "unknown authority") {
-			logger.AccTokenLog.Warnf("Certificate verify: %v", err)
-		} else {
-			logger.AccTokenLog.Errorf("Certificate verify: %v", err)
+		nfCert, err := oauth.ParseCertFromPEM(
+			oauth.GetNFCertPath(factory.NrfConfig.GetCertBasePath(), reqNfType, reqNfInstanceId))
+		if err != nil {
+			logger.AccTokenLog.Errorln("NF Certificate get error: " + err.Error())
 			return &models.Nrf_AccTok_AccessTokenErr{
 				Error: "invalid_client",
 			}
 		}
-	}
 
-	if len(nfCert.URIs) == 0 || nfCert.URIs[0] == nil {
-		logger.AccTokenLog.Errorln("Certificate verify error: missing URI SAN")
-		return &models.Nrf_AccTok_AccessTokenErr{
-			Error: "invalid_client",
+		opts := x509.VerifyOptions{
+			Roots:   roots,
+			DNSName: reqNfType,
 		}
-	}
+		if _, err = nfCert.Verify(opts); err != nil {
+			// DEBUG
+			// In testing environment, this would leads to follwing error:
+			// certificate verify error: x509: certificate signed by unknown authority free5GC
+			if strings.Contains(err.Error(), "unknown authority") {
+				logger.AccTokenLog.Warnf("Certificate verify: %v", err)
+			} else {
+				logger.AccTokenLog.Errorf("Certificate verify: %v", err)
+				return &models.Nrf_AccTok_AccessTokenErr{
+					Error: "invalid_client",
+				}
+			}
+		}
 
-	uri := nfCert.URIs[0]
-	opaqueParts := strings.SplitN(uri.Opaque, ":", 2)
-	if len(opaqueParts) != 2 || opaqueParts[1] == "" {
-		logger.AccTokenLog.Errorf("Certificate verify error: invalid URI SAN format: %s", uri.String())
-		return &models.Nrf_AccTok_AccessTokenErr{
-			Error: "invalid_client",
+		if len(nfCert.URIs) == 0 || nfCert.URIs[0] == nil {
+			logger.AccTokenLog.Errorln("Certificate verify error: missing URI SAN")
+			return &models.Nrf_AccTok_AccessTokenErr{
+				Error: "invalid_client",
+			}
 		}
-	}
-	id := opaqueParts[1]
-	if id != reqNfInstanceId {
-		logger.AccTokenLog.Errorln("Certificate verify error: NF Instance Id mismatch (Expected ID: " +
-			reqNfInstanceId + " Received ID: " + id + ")")
-		return &models.Nrf_AccTok_AccessTokenErr{
-			Error: "invalid_client",
+
+		uri := nfCert.URIs[0]
+		opaqueParts := strings.SplitN(uri.Opaque, ":", 2)
+		if len(opaqueParts) != 2 || opaqueParts[1] == "" {
+			logger.AccTokenLog.Errorf("Certificate verify error: invalid URI SAN format: %s", uri.String())
+			return &models.Nrf_AccTok_AccessTokenErr{
+				Error: "invalid_client",
+			}
+		}
+		id := opaqueParts[1]
+		if id != reqNfInstanceId {
+			logger.AccTokenLog.Errorln("Certificate verify error: NF Instance Id mismatch (Expected ID: " +
+				reqNfInstanceId + " Received ID: " + id + ")")
+			return &models.Nrf_AccTok_AccessTokenErr{
+				Error: "invalid_client",
+			}
 		}
 	}
 
@@ -320,6 +343,36 @@ func (p *Processor) AccessTokenScopeCheck(req models.Nrf_AccTok_AccessTokenReq) 
 		return &models.Nrf_AccTok_AccessTokenErr{Error: "invalid_scope"}
 	}
 	return nil
+}
+
+// verifiedClientCertificate binds the request identity to the authenticated TLS peer.
+// PeerCertificates alone is insufficient: the chain must have passed TLS verification.
+func verifiedClientCertificate(state *tls.ConnectionState, instanceID string) (*x509.Certificate, error) {
+	if state == nil || len(state.VerifiedChains) == 0 || len(state.VerifiedChains[0]) == 0 {
+		return nil, errors.New("verified TLS client certificate is required")
+	}
+	cert := state.VerifiedChains[0][0]
+	if cert == nil {
+		return nil, errors.New("verified TLS client certificate is missing")
+	}
+	var certificateID string
+	for _, uri := range cert.URIs {
+		if uri == nil || !strings.EqualFold(uri.Scheme, "urn") {
+			continue
+		}
+		parts := strings.SplitN(uri.Opaque, ":", 2)
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "uuid") {
+			continue
+		}
+		if !isUUIDv4(parts[1]) || certificateID != "" {
+			return nil, errors.New("client certificate must contain a single NF instance UUID v4")
+		}
+		certificateID = parts[1]
+	}
+	if certificateID == "" || certificateID != instanceID {
+		return nil, errors.New("client certificate NF instance ID does not match requester")
+	}
+	return cert, nil
 }
 
 func firstRejectedServiceScope(
