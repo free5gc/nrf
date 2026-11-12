@@ -145,3 +145,41 @@ func TestValidateRegistrationStillChecksTheProfile(t *testing.T) {
 		t.Fatal("expected invalid nfType to be rejected")
 	}
 }
+
+func TestValidateNfProfileFqdn(t *testing.T) {
+	tests := []struct {
+		name    string
+		modify  func(p *models.Nrf_NFMgmt_NFProfile)
+		wantErr bool
+	}{
+		{"valid_profile_and_service_fqdn", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.Fqdn = "amf.free5gc.org"
+			p.NfServices[0].Fqdn = "amf.free5gc.org"
+		}, false},
+		{"url_as_profile_fqdn", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.Fqdn = "http://amf.free5gc.org:8000"
+		}, true},
+		{"ip_as_profile_fqdn", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.Fqdn = "10.0.0.18"
+		}, true},
+		{"invalid_profile_inter_plmn_fqdn", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.InterPlmnFqdn = "amf..5gc.mnc093.mcc208.3gppnetwork.org"
+		}, true},
+		{"invalid_service_fqdn", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.NfServices[0].Fqdn = "amf.free5gc.org:8000"
+		}, true},
+		{"invalid_service_inter_plmn_fqdn", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.NfServices[0].InterPlmnFqdn = "-amf.free5gc.org"
+		}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			profile := validTestNfProfile()
+			tt.modify(&profile)
+			if err := validateTestProfile(t, profile); (err != nil) != tt.wantErr {
+				t.Fatalf("validate error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

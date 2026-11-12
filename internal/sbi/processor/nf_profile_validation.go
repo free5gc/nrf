@@ -58,6 +58,9 @@ func validateNfProfile(nfProfile *models.Nrf_NFMgmt_NFProfile) error {
 		return fmt.Errorf("heartBeatTimer must be between %d and %d", minHeartBeatTimer, maxHeartBeatTimer)
 	}
 
+	if err := validateFqdns("", nfProfile.Fqdn, nfProfile.InterPlmnFqdn); err != nil {
+		return err
+	}
 	for index, address := range nfProfile.Ipv4Addresses {
 		if !validIPv4OrHostname(address) {
 			return fmt.Errorf("invalid ipv4Addresses[%d]: %s", index, address)
@@ -76,6 +79,10 @@ func validateNfProfile(nfProfile *models.Nrf_NFMgmt_NFProfile) error {
 		if service.NfServiceStatus != "" && !validNfServiceStatus(service.NfServiceStatus) {
 			return fmt.Errorf("invalid nfServices[%d].nfServiceStatus: %s", serviceIndex, service.NfServiceStatus)
 		}
+		if err := validateFqdns(fmt.Sprintf("nfServices[%d].", serviceIndex),
+			service.Fqdn, service.InterPlmnFqdn); err != nil {
+			return err
+		}
 		for endpointIndex, endpoint := range service.IpEndPoints {
 			if err := validateIPEndPoint(endpoint); err != nil {
 				return fmt.Errorf("invalid nfServices[%d].ipEndPoints[%d]: %w", serviceIndex, endpointIndex, err)
@@ -83,6 +90,17 @@ func validateNfProfile(nfProfile *models.Nrf_NFMgmt_NFProfile) error {
 		}
 	}
 
+	return nil
+}
+
+// validateFqdns checks that fqdn and interPlmnFqdn, when present, are hostnames (TS 29.571 Fqdn).
+func validateFqdns(field, fqdn, interPlmnFqdn string) error {
+	if fqdn != "" && !validHostname(fqdn) {
+		return fmt.Errorf("invalid %sfqdn: %s", field, fqdn)
+	}
+	if interPlmnFqdn != "" && !validHostname(interPlmnFqdn) {
+		return fmt.Errorf("invalid %sinterPlmnFqdn: %s", field, interPlmnFqdn)
+	}
 	return nil
 }
 
