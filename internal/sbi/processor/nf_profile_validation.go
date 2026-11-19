@@ -282,7 +282,9 @@ func validNfType(nfType models.Nrf_NFMgmt_NFType) bool {
 		models.Nrf_NFMgmt_NFType_SMS_IWMSC,
 		models.Nrf_NFMgmt_NFType_MBSF,
 		models.Nrf_NFMgmt_NFType_MBSTF,
-		models.Nrf_NFMgmt_NFType_PANF:
+		models.Nrf_NFMgmt_NFType_PANF,
+		models.Nrf_NFMgmt_NFType_IP_SM_GW,
+		models.Nrf_NFMgmt_NFType_SMS_ROUTER:
 		return true
 	default:
 		return false
