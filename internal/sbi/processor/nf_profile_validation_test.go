@@ -171,6 +171,35 @@ func TestValidateNfProfileFqdn(t *testing.T) {
 		{"invalid_service_inter_plmn_fqdn", func(p *models.Nrf_NFMgmt_NFProfile) {
 			p.NfServices[0].InterPlmnFqdn = "-amf.free5gc.org"
 		}, true},
+		// TS 29.571 Fqdn: at least two labels, the last one alphabetic with 2 to 63 letters.
+		{"short_name_as_profile_fqdn", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.Fqdn = "oai-udr"
+		}, true},
+		{"one_letter_tld_as_profile_fqdn", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.Fqdn = "a.b"
+		}, true},
+		{"numeric_tld_as_service_fqdn", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.NfServices[0].Fqdn = "amf.123"
+		}, true},
+		{"one_letter_tld_as_service_inter_plmn_fqdn", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.NfServices[0].InterPlmnFqdn = "amf.c"
+		}, true},
+		{"trailing_dot_and_kubernetes_service_fqdn", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.Fqdn = "amf.free5gc.org."
+			p.NfServices[0].Fqdn = "amf.free5gc.svc.cluster.local"
+		}, false},
+		// TS 29.510 6.1.6.2.3 NOTE 8: https needs an FQDN in the NFService or NFProfile.
+		{"https_without_fqdn", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.NfServices[0].Scheme = models.UriScheme_HTTPS
+		}, true},
+		{"https_with_service_fqdn", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.NfServices[0].Scheme = models.UriScheme_HTTPS
+			p.NfServices[0].Fqdn = "amf.free5gc.org"
+		}, false},
+		{"https_with_profile_fqdn", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.NfServices[0].Scheme = models.UriScheme_HTTPS
+			p.Fqdn = "amf.free5gc.org"
+		}, false},
 	}
 
 	for _, tt := range tests {
