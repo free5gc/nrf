@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
@@ -16,6 +17,9 @@ const (
 	maxHeartBeatTimer = 3600
 	maxTCPPort        = 65535
 )
+
+// fqdnPattern is the pattern of the TS 29.571 Fqdn data type (minLength 4, maxLength 253).
+var fqdnPattern = regexp.MustCompile(`^([0-9A-Za-z]([-0-9A-Za-z]{0,61}[0-9A-Za-z])?\.)+[A-Za-z]{2,63}\.?$`)
 
 // validateNfProfileJSON validates raw JSON fields before checking the decoded profile.
 func validateNfProfileJSON(raw []byte, nfProfile *models.Nrf_NFMgmt_NFProfile) error {
@@ -58,6 +62,9 @@ func validateNfProfile(nfProfile *models.Nrf_NFMgmt_NFProfile) error {
 		return fmt.Errorf("heartBeatTimer must be between %d and %d", minHeartBeatTimer, maxHeartBeatTimer)
 	}
 
+	if err := validateFqdns("", nfProfile.Fqdn, nfProfile.InterPlmnFqdn); err != nil {
+		return err
+	}
 	for index, address := range nfProfile.Ipv4Addresses {
 		if !validIPv4OrHostname(address) {
 			return fmt.Errorf("invalid ipv4Addresses[%d]: %s", index, address)
@@ -76,6 +83,14 @@ func validateNfProfile(nfProfile *models.Nrf_NFMgmt_NFProfile) error {
 		if service.NfServiceStatus != "" && !validNfServiceStatus(service.NfServiceStatus) {
 			return fmt.Errorf("invalid nfServices[%d].nfServiceStatus: %s", serviceIndex, service.NfServiceStatus)
 		}
+		if err := validateFqdns(fmt.Sprintf("nfServices[%d].", serviceIndex),
+			service.Fqdn, service.InterPlmnFqdn); err != nil {
+			return err
+		}
+		// TS 29.510 6.1.6.2.3 NOTE 8: with https an FQDN is present in the NFService or the NFProfile.
+		if service.Scheme == models.UriScheme_HTTPS && service.Fqdn == "" && nfProfile.Fqdn == "" {
+			return fmt.Errorf("nfServices[%d]: scheme https requires fqdn in the NFService or NFProfile", serviceIndex)
+		}
 		for endpointIndex, endpoint := range service.IpEndPoints {
 			if err := validateIPEndPoint(endpoint); err != nil {
 				return fmt.Errorf("invalid nfServices[%d].ipEndPoints[%d]: %w", serviceIndex, endpointIndex, err)
@@ -83,6 +98,17 @@ func validateNfProfile(nfProfile *models.Nrf_NFMgmt_NFProfile) error {
 		}
 	}
 
+	return nil
+}
+
+// validateFqdns checks that fqdn and interPlmnFqdn, when present, are TS 29.571 Fqdn values.
+func validateFqdns(field, fqdn, interPlmnFqdn string) error {
+	if fqdn != "" && !validFqdn(fqdn) {
+		return fmt.Errorf("invalid %sfqdn: %s", field, fqdn)
+	}
+	if interPlmnFqdn != "" && !validFqdn(interPlmnFqdn) {
+		return fmt.Errorf("invalid %sinterPlmnFqdn: %s", field, interPlmnFqdn)
+	}
 	return nil
 }
 
@@ -136,6 +162,11 @@ func validIPv4OrHostname(address string) bool {
 func validIPv4(address string) bool {
 	ip := net.ParseIP(address)
 	return ip != nil && ip.To4() != nil
+}
+
+// validFqdn reports whether fqdn matches the TS 29.571 Fqdn data type.
+func validFqdn(fqdn string) bool {
+	return len(fqdn) >= 4 && len(fqdn) <= 253 && fqdnPattern.MatchString(fqdn)
 }
 
 // validHostname reports whether address is a valid DNS-style hostname.
