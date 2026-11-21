@@ -97,11 +97,52 @@ func TestValidateNfProfileRejectsExplicitZeroHeartbeat(t *testing.T) {
 
 func TestValidateNfProfileAcceptsDockerComposeFQDNAlias(t *testing.T) {
 	profile := validTestNfProfile()
-	profile.Ipv4Addresses = []string{"nssf.free5gc.org"}
-	profile.NfServices[0].IpEndPoints[0].Ipv4Address = "nssf.free5gc.org"
+	profile.Fqdn = "nssf.free5gc.org"
+	profile.NfServices[0].Fqdn = "nssf.free5gc.org"
+	profile.NfServices[0].IpEndPoints[0].Ipv4Address = ""
 
 	if err := validateTestProfile(t, profile); err != nil {
 		t.Fatalf("expected Docker Compose FQDN alias to be accepted, got error: %v", err)
+	}
+}
+
+// TS 29.510 6.1.6.2.2 / 6.1.6.2.3 / 6.1.6.2.5: hostnames belong in fqdn, IP fields
+// hold IP literals, and apiPrefix is a path, not a URL.
+func TestValidateNfProfileRejectsLegacyAddressing(t *testing.T) {
+	tests := []struct {
+		name   string
+		modify func(*models.Nrf_NFMgmt_NFProfile)
+	}{
+		{"Hostname_in_ipv4Addresses", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.Ipv4Addresses = []string{"nssf.free5gc.org"}
+		}},
+		{"Hostname_in_ipEndPoints", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.NfServices[0].IpEndPoints[0].Ipv4Address = "nssf.free5gc.org"
+		}},
+		{"Both_IPv4_and_IPv6_in_ipEndPoint", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.NfServices[0].IpEndPoints[0].Ipv6Address = "2001:db8::1"
+		}},
+		{"URL_in_apiPrefix", func(p *models.Nrf_NFMgmt_NFProfile) {
+			p.NfServices[0].ApiPrefix = "http://127.0.0.18:8000"
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			profile := validTestNfProfile()
+			tt.modify(&profile)
+			if err := validateTestProfile(t, profile); err == nil {
+				t.Fatal("expected legacy addressing to be rejected")
+			}
+		})
+	}
+}
+
+func TestValidateNfProfileAcceptsApiPrefixPath(t *testing.T) {
+	profile := validTestNfProfile()
+	profile.NfServices[0].ApiPrefix = "/operator/edge"
+
+	if err := validateTestProfile(t, profile); err != nil {
+		t.Fatalf("expected apiPrefix path to be accepted, got error: %v", err)
 	}
 }
 

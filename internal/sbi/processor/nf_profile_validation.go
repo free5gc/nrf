@@ -5,17 +5,16 @@ import (
 	"fmt"
 	"net"
 	"regexp"
-	"strings"
 
 	"github.com/google/uuid"
 
 	"github.com/free5gc/openapi/models"
+	"github.com/free5gc/util/validator"
 )
 
 const (
 	minHeartBeatTimer = 1
 	maxHeartBeatTimer = 3600
-	maxTCPPort        = 65535
 )
 
 // fqdnPattern is the pattern of the TS 29.571 Fqdn data type (minLength 4, maxLength 253).
@@ -65,8 +64,9 @@ func validateNfProfile(nfProfile *models.Nrf_NFMgmt_NFProfile) error {
 	if err := validateFqdns("", nfProfile.Fqdn, nfProfile.InterPlmnFqdn); err != nil {
 		return err
 	}
+	// TS 29.510 6.1.6.2.2: ipv4Addresses holds IPv4 literals; a hostname belongs in fqdn.
 	for index, address := range nfProfile.Ipv4Addresses {
-		if !validIPv4OrHostname(address) {
+		if !validIPv4(address) {
 			return fmt.Errorf("invalid ipv4Addresses[%d]: %s", index, address)
 		}
 	}
@@ -90,6 +90,9 @@ func validateNfProfile(nfProfile *models.Nrf_NFMgmt_NFProfile) error {
 		// TS 29.510 6.1.6.2.3 NOTE 8: with https an FQDN is present in the NFService or the NFProfile.
 		if service.Scheme == models.UriScheme_HTTPS && service.Fqdn == "" && nfProfile.Fqdn == "" {
 			return fmt.Errorf("nfServices[%d]: scheme https requires fqdn in the NFService or NFProfile", serviceIndex)
+		}
+		if err := validator.ValidateApiPrefix(service.ApiPrefix); err != nil {
+			return fmt.Errorf("invalid nfServices[%d].apiPrefix: %w", serviceIndex, err)
 		}
 		for endpointIndex, endpoint := range service.IpEndPoints {
 			if err := validateIPEndPoint(endpoint); err != nil {
@@ -124,38 +127,17 @@ func validateNfInstanceID(nfInstanceID string) error {
 	return nil
 }
 
-// validateIPEndPoint validates service endpoint transport, port, and address format.
+// validateIPEndPoint validates service endpoint transport, port, and addresses (TS 29.510 6.1.6.2.5).
 func validateIPEndPoint(endpoint models.Nrf_NFMgmt_IpEndPoint) error {
 	if endpoint.Transport != "" && endpoint.Transport != models.Nrf_NFMgmt_TransportProtocol_TCP {
 		return fmt.Errorf("transport must be TCP")
 	}
-	if endpoint.Port != 0 && (endpoint.Port < 1 || endpoint.Port > maxTCPPort) {
-		return fmt.Errorf("port must be between 1 and %d", maxTCPPort)
-	}
-
-	if endpoint.Ipv4Address != "" {
-		if !validIPv4OrHostname(endpoint.Ipv4Address) {
-			return fmt.Errorf("invalid ipv4Address: %s", endpoint.Ipv4Address)
-		}
-	}
-	if endpoint.Ipv6Address != "" {
-		ip := net.ParseIP(endpoint.Ipv6Address)
-		if ip == nil || ip.To4() != nil {
-			return fmt.Errorf("invalid ipv6Address: %s", endpoint.Ipv6Address)
-		}
-	}
-
-	return nil
+	return validator.ValidateIpEndPoint(endpoint.Ipv4Address, endpoint.Ipv6Address, endpoint.Port)
 }
 
 // validHeartBeatTimer checks the allowed heartbeat timer range.
 func validHeartBeatTimer(heartBeatTimer int32) bool {
 	return heartBeatTimer >= minHeartBeatTimer && heartBeatTimer <= maxHeartBeatTimer
-}
-
-// validIPv4OrHostname accepts an IPv4 literal or DNS-style hostname.
-func validIPv4OrHostname(address string) bool {
-	return validIPv4(address) || validHostname(address)
 }
 
 // validIPv4 reports whether address is an IPv4 literal.
@@ -167,52 +149,6 @@ func validIPv4(address string) bool {
 // validFqdn reports whether fqdn matches the TS 29.571 Fqdn data type.
 func validFqdn(fqdn string) bool {
 	return len(fqdn) >= 4 && len(fqdn) <= 253 && fqdnPattern.MatchString(fqdn)
-}
-
-// validHostname reports whether address is a valid DNS-style hostname.
-func validHostname(address string) bool {
-	if address == "" || len(address) > 253 || isDottedIPv4(address) {
-		return false
-	}
-	address = strings.TrimSuffix(address, ".")
-	labels := strings.Split(address, ".")
-	hasLetter := false
-	for _, label := range labels {
-		if len(label) == 0 || len(label) > 63 || label[0] == 45 || label[len(label)-1] == 45 {
-			return false
-		}
-		for i := 0; i < len(label); i++ {
-			c := label[i]
-			if c >= 97 && c <= 122 || c >= 65 && c <= 90 {
-				hasLetter = true
-				continue
-			}
-			if c >= 48 && c <= 57 || c == 45 {
-				continue
-			}
-			return false
-		}
-	}
-	return hasLetter
-}
-
-// isDottedIPv4 detects dotted numeric values that should not pass as hostnames.
-func isDottedIPv4(address string) bool {
-	parts := strings.Split(address, ".")
-	if len(parts) != 4 {
-		return false
-	}
-	for _, part := range parts {
-		if part == "" {
-			return false
-		}
-		for i := 0; i < len(part); i++ {
-			if part[i] < 48 || part[i] > 57 {
-				return false
-			}
-		}
-	}
-	return true
 }
 
 // validIPv6 reports whether address is an IPv6 literal.
