@@ -6,7 +6,7 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/evanphx/json-patch/v5 v5.9.0
 	github.com/free5gc/openapi v1.3.1-0.20261104070955-7fad8e868cb2
-	github.com/free5gc/util v1.4.1-0.20261014070359-d865b0ce854b
+	github.com/free5gc/util v1.4.1-0.20261118044530-a14766fe79d2
 	github.com/gin-gonic/gin v1.10.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0

@@ -22,6 +22,7 @@ import (
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/openapi/oauth"
 	"github.com/free5gc/util/mongoapi"
+	"github.com/free5gc/util/serviceuri"
 )
 
 type NRFContext struct {
@@ -234,6 +235,7 @@ func InitNFService(srvNameList []string, version string) []models.Nrf_NFMgmt_NFS
 	tmpVersion := strings.Split(version, ".")
 	versionUri := "v" + tmpVersion[0]
 	NFServices := make([]models.Nrf_NFMgmt_NFService, len(srvNameList))
+	addr := serviceuri.NewAddressing(factory.NrfConfig.GetSbiRegisterIP())
 	for index, nameString := range srvNameList {
 		name := models.Nrf_NFMgmt_ServiceName(nameString)
 		NFServices[index] = models.Nrf_NFMgmt_NFService{
@@ -247,14 +249,8 @@ func InitNFService(srvNameList []string, version string) []models.Nrf_NFMgmt_NFS
 			},
 			Scheme:          models.UriScheme(factory.NrfConfig.GetSbiScheme()),
 			NfServiceStatus: models.Nrf_NFMgmt_NFServiceStatus_REGISTERED,
-			ApiPrefix:       factory.NrfConfig.GetSbiUri(),
-			IpEndPoints: []models.Nrf_NFMgmt_IpEndPoint{
-				{
-					Ipv4Address: factory.NrfConfig.GetSbiRegisterIP(),
-					Transport:   models.Nrf_NFMgmt_TransportProtocol_TCP,
-					Port:        int32(factory.NrfConfig.GetSbiPort()),
-				},
-			},
+			Fqdn:            addr.FQDN,
+			IpEndPoints:     addr.IpEndPoints(int32(factory.NrfConfig.GetSbiPort())),
 		}
 	}
 	return NFServices
