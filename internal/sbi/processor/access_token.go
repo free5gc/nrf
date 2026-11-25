@@ -19,7 +19,6 @@ import (
 	"github.com/free5gc/nrf/internal/util"
 	"github.com/free5gc/nrf/pkg/factory"
 	"github.com/free5gc/openapi/models"
-	"github.com/free5gc/openapi/oauth"
 	"github.com/free5gc/util/mapstruct"
 	"github.com/free5gc/util/metrics/sbi"
 	"github.com/free5gc/util/mongoapi"
@@ -167,14 +166,10 @@ func (p *Processor) AccessTokenScopeCheck(
 		return errResponse
 	}
 
-	var clientCert *x509.Certificate
-	if factory.NrfConfig.GetSbiScheme() == "https" {
-		var err error
-		clientCert, err = verifiedClientCertificate(tlsState, reqNfInstanceId)
-		if err != nil {
-			logger.AccTokenLog.Warnf("Client certificate verification failed: %v", err)
-			return &models.Nrf_AccTok_AccessTokenErr{Error: "invalid_client"}
-		}
+	clientCert, err := verifiedClientCertificate(tlsState, reqNfInstanceId)
+	if err != nil {
+		logger.AccTokenLog.Warnf("Client certificate verification failed: %v", err)
+		return &models.Nrf_AccTok_AccessTokenErr{Error: "invalid_client"}
 	}
 
 	logger.AccTokenLog.Debugf("reqNfInstanceId: %s", reqNfInstanceId)
@@ -206,67 +201,9 @@ func (p *Processor) AccessTokenScopeCheck(
 	reqNfType = consumerNfType
 
 	nrfCtx := nrf_context.GetSelf()
-	if clientCert != nil {
-		// TLS already verified the chain and client-auth usage. Preserve the NF type check.
-		if err := clientCert.VerifyHostname(reqNfType); err != nil {
-			return &models.Nrf_AccTok_AccessTokenErr{Error: "invalid_client"}
-		}
-	} else {
-		// Preserve the existing certificate lookup for HTTP deployments.
-		// Verify NF's certificate with root certificate
-		roots := x509.NewCertPool()
-		roots.AddCert(nrfCtx.RootCert)
-
-		nfCert, err := oauth.ParseCertFromPEM(
-			oauth.GetNFCertPath(factory.NrfConfig.GetCertBasePath(), reqNfType, reqNfInstanceId))
-		if err != nil {
-			logger.AccTokenLog.Errorln("NF Certificate get error: " + err.Error())
-			return &models.Nrf_AccTok_AccessTokenErr{
-				Error: "invalid_client",
-			}
-		}
-
-		opts := x509.VerifyOptions{
-			Roots:   roots,
-			DNSName: reqNfType,
-		}
-		if _, err = nfCert.Verify(opts); err != nil {
-			// DEBUG
-			// In testing environment, this would leads to follwing error:
-			// certificate verify error: x509: certificate signed by unknown authority free5GC
-			if strings.Contains(err.Error(), "unknown authority") {
-				logger.AccTokenLog.Warnf("Certificate verify: %v", err)
-			} else {
-				logger.AccTokenLog.Errorf("Certificate verify: %v", err)
-				return &models.Nrf_AccTok_AccessTokenErr{
-					Error: "invalid_client",
-				}
-			}
-		}
-
-		if len(nfCert.URIs) == 0 || nfCert.URIs[0] == nil {
-			logger.AccTokenLog.Errorln("Certificate verify error: missing URI SAN")
-			return &models.Nrf_AccTok_AccessTokenErr{
-				Error: "invalid_client",
-			}
-		}
-
-		uri := nfCert.URIs[0]
-		opaqueParts := strings.SplitN(uri.Opaque, ":", 2)
-		if len(opaqueParts) != 2 || opaqueParts[1] == "" {
-			logger.AccTokenLog.Errorf("Certificate verify error: invalid URI SAN format: %s", uri.String())
-			return &models.Nrf_AccTok_AccessTokenErr{
-				Error: "invalid_client",
-			}
-		}
-		id := opaqueParts[1]
-		if id != reqNfInstanceId {
-			logger.AccTokenLog.Errorln("Certificate verify error: NF Instance Id mismatch (Expected ID: " +
-				reqNfInstanceId + " Received ID: " + id + ")")
-			return &models.Nrf_AccTok_AccessTokenErr{
-				Error: "invalid_client",
-			}
-		}
+	// TLS already verified the chain and client-auth usage. Preserve the NF type check.
+	if err := clientCert.VerifyHostname(reqNfType); err != nil {
+		return &models.Nrf_AccTok_AccessTokenErr{Error: "invalid_client"}
 	}
 
 	// Check scope for this NRF instance or a type-level NRF target.

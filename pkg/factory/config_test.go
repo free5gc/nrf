@@ -11,6 +11,45 @@ import (
 	"github.com/free5gc/openapi/models"
 )
 
+func TestOAuthRequiresHTTPS(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		scheme  string
+		oauth   bool
+		wantErr bool
+	}{
+		{"OAuth over HTTP", "http", true, true},
+		{"OAuth over HTTPS", "https", true, false},
+		{"HTTP without OAuth", "http", false, false},
+		{"HTTPS without OAuth", "https", false, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{
+				Info: &Info{Version: "1.0.2"},
+				Configuration: &Configuration{
+					Sbi:             &Sbi{Scheme: tt.scheme, BindingIPv4: "127.0.0.1", OAuth: tt.oauth},
+					MongoDBName:     "free5gc",
+					MongoDBUrl:      "mongodb://127.0.0.1:27017",
+					DefaultPlmnId:   models.PlmnId{Mcc: "208", Mnc: "93"},
+					ServiceNameList: []string{"nnrf-nfm", "nnrf-disc"},
+				},
+				Logger: &Logger{Level: "info"},
+			}
+			valid, err := cfg.Validate()
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.False(t, valid)
+				assert.Contains(t, err.Error(), "OAuth requires HTTPS")
+				// ReadConfig expects this error type when reporting invalid configuration.
+				assert.IsType(t, govalidator.Errors{}, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.True(t, valid)
+		})
+	}
+}
+
 func TestHeartbeatDefaults(t *testing.T) {
 	tests := []struct {
 		name              string

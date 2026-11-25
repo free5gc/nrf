@@ -223,7 +223,16 @@ type Sbi struct {
 
 func (s *Sbi) validate() (bool, error) {
 	result, err := govalidator.ValidateStruct(s)
-	return result, appendInvalid(err)
+	if err != nil {
+		return result, appendInvalid(err)
+	}
+	// RFC 6749 section 3.2 requires TLS for the token endpoint.
+	if s.OAuth && s.Scheme != "https" {
+		return false, govalidator.Errors{
+			errors.New("OAuth requires HTTPS: set sbi.scheme to \"https\" when sbi.oauth is true"),
+		}
+	}
+	return result, nil
 }
 
 type Metrics struct {

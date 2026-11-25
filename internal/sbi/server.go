@@ -66,8 +66,11 @@ func NewServer(nrf ServerNrf, tlsKeyLogPath string) (*Server, error) {
 
 func (s *Server) configureOAuthMutualTLS() error {
 	cfg := s.Config()
-	if !cfg.GetOAuth() || cfg.GetSbiScheme() != "https" {
+	if !cfg.GetOAuth() {
 		return nil
+	}
+	if cfg.GetSbiScheme() != "https" {
+		return fmt.Errorf("OAuth requires HTTPS: set sbi.scheme to \"https\" when sbi.oauth is true")
 	}
 
 	rootCertPem, err := os.ReadFile(cfg.GetRootCertPemPath())

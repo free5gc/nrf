@@ -217,7 +217,10 @@ func TestAccessTokenRequesterIdentity(t *testing.T) {
 			"HTTPS unverified peer cannot bypass check", "https", otherID,
 			&tls.ConnectionState{PeerCertificates: []*x509.Certificate{otherCert}}, http.StatusBadRequest, 0,
 		},
-		{"HTTP preserves legacy certificate lookup", "http", otherID, nil, http.StatusOK, 1},
+		{
+			"HTTP cannot request B despite B disk certificate", "http", otherID,
+			nil, http.StatusBadRequest, 0,
+		},
 	} {
 		mt.Run(tc.name, func(mt *mtest.T) {
 			mongoapi.Client = mt.Client
